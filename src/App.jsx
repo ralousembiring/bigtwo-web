@@ -90,6 +90,35 @@ function Button({ children, onClick, primary, danger, disabled, small }) {
   );
 }
 
+
+function SupportButton() {
+  return (
+    <a
+      href="https://saweria.co/ralou"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        padding: "8px 13px",
+        borderRadius: 10,
+        border: "1px solid rgba(201,162,39,0.55)",
+        background: "rgba(201,162,39,0.10)",
+        color: "#F5EFE0",
+        fontFamily: "system-ui, sans-serif",
+        fontWeight: 600,
+        fontSize: 12,
+        textDecoration: "none",
+        cursor: "pointer",
+      }}
+    >
+      ☕ Support Developer
+    </a>
+  );
+}
+
 function randomRoomCode() {
   return Math.random().toString(36).slice(2, 7).toUpperCase();
 }
@@ -375,6 +404,12 @@ export default function App() {
           <Button primary onClick={() => enterRoom(roomInput)}>
             {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
           </Button>
+          <div style={{ textAlign: "center", marginTop: 14 }}>
+            <SupportButton />
+            <div style={{ color: "#bdb7aa", fontSize: 10, marginTop: 7 }}>
+              Suka Big Two? Dukunganmu membantu pengembangan game.
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -524,6 +559,10 @@ export default function App() {
                 </Button>
               )}
               {game.phase === "roundover" && !amIHost && <div style={{ color: cream, fontSize: 12 }}>Menunggu host memulai ronde berikutnya...</div>}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 2 }}>
+              <SupportButton />
             </div>
           </>
         )}
