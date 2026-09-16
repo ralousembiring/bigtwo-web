@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "./firebase";
-import { ref, onValue, runTransaction, onDisconnect, set } from "firebase/database";
+import { ref, onValue, runTransaction, set } from "firebase/database";
 import {
   SUITS,
   rankLabel,
@@ -164,13 +164,6 @@ export default function App() {
     }
     setMySeat(seat);
     setError("");
-    // auto-clear the seat if this browser disconnects
-    const connectedRef = ref(db, ".info/connected");
-    onValue(connectedRef, (snap) => {
-      if (snap.val() === true) {
-        onDisconnect(seatRef).remove();
-      }
-    });
   }
 
   function makeBot(seat) {
