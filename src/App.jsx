@@ -424,12 +424,24 @@ export default function App() {
             <div style={{ marginBottom: 10 }}>
               Kamu duduk di Kursi {mySeat + 1} ({displayName(mySeat)}). {amIHost ? "Kamu host." : "Menunggu host memulai game..."}
             </div>
-            <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 10 }}>
-              Pemain saat ini: {occupiedSeats.map((s) => displayName(s)).join(", ") || "-"}
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 14 }}>
+              {[0, 1, 2, 3].map((seat) => (
+                <div key={seat} style={{ background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "8px 12px", minWidth: 110 }}>
+                  <div style={{ fontSize: 11, opacity: 0.8 }}>Kursi {seat + 1}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: players[seat] ? 6 : 0 }}>
+                    {players[seat]?.name || "Kosong (bot)"}
+                  </div>
+                  {amIHost && players[seat] && seat !== mySeat && (
+                    <Button small onClick={() => makeBot(seat)}>
+                      Jadikan Bot
+                    </Button>
+                  )}
+                </div>
+              ))}
             </div>
             {amIHost && (
-              <Button primary onClick={startGame} disabled={occupiedSeats.length < 2}>
-                Mulai Game {occupiedSeats.length < 2 ? "(butuh minimal 2 pemain)" : ""}
+              <Button primary onClick={startGame} disabled={occupiedSeats.length < 1}>
+                Mulai Game
               </Button>
             )}
           </div>
