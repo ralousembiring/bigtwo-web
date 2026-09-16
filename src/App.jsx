@@ -38,6 +38,7 @@ function CardFace({ card, selected, onClick, small, faceDown }) {
   return (
     <button
       onClick={onClick}
+      className={`player-card ${small ? "player-card-small" : ""} ${faceDown ? "player-card-back" : ""}`}
       style={{
         width: w,
         height: h,
@@ -122,6 +123,148 @@ function SupportButton() {
 function randomRoomCode() {
   return Math.random().toString(36).slice(2, 7).toUpperCase();
 }
+
+
+/* ---------- responsive layout ---------- */
+
+const responsiveStyles = `
+  * { box-sizing: border-box; }
+  html, body, #root { margin: 0; min-height: 100%; }
+  button, input { -webkit-tap-highlight-color: transparent; }
+  .player-card { touch-action: manipulation; }
+  .board-table { overflow: hidden; }
+  .board-middle { min-width: 0; }
+  .opponent-left, .opponent-right { flex: 0 0 auto; }
+  .center-play { min-width: 0; }
+
+  @media (max-width: 600px) {
+    .app-shell { padding: 10px !important; }
+    .app-content { max-width: 100% !important; gap: 8px !important; }
+    .room-title { font-size: 18px !important; }
+    .room-link { font-size: 11px !important; overflow-wrap: anywhere; line-height: 1.35; }
+
+    .board-shell { padding: 7px !important; border-radius: 17px !important; }
+    .board-table {
+      position: relative !important;
+      min-height: 500px !important;
+      height: 500px !important;
+      padding: 8px !important;
+      gap: 0 !important;
+      display: block !important;
+    }
+
+    .opponent-top {
+      position: absolute;
+      top: 9px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      display: flex;
+      justify-content: center;
+    }
+    .opponent-top .player-card-small { width: 30px !important; height: 43px !important; }
+    .opponent-top .player-card-back { margin-left: -13px !important; }
+    .opponent-top > div { padding: 2px 4px !important; }
+
+    .board-middle {
+      position: absolute !important;
+      top: 72px;
+      left: 5px;
+      right: 5px;
+      width: auto !important;
+      display: grid !important;
+      grid-template-columns: 72px minmax(0, 1fr) 72px;
+      align-items: center;
+      gap: 3px;
+    }
+    .opponent-left, .opponent-right {
+      width: 72px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .opponent-left > div, .opponent-right > div {
+      width: 72px;
+      padding: 2px !important;
+      gap: 3px !important;
+      overflow: hidden;
+    }
+    .opponent-left .player-card-small, .opponent-right .player-card-small {
+      width: 22px !important;
+      height: 32px !important;
+    }
+    .opponent-left .player-card-back, .opponent-right .player-card-back { margin-left: -15px !important; }
+    .opponent-left .player-card-small:first-child, .opponent-right .player-card-small:first-child { margin-left: 0 !important; }
+    .opponent-left button, .opponent-right button { white-space: nowrap; }
+    .opponent-left > div > div:last-child, .opponent-right > div > div:last-child {
+      max-width: 70px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .center-play { width: 100%; min-width: 0; min-height: 100px !important; overflow: hidden; }
+    .center-play > div:first-child { font-size: 10px !important; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .center-play .player-card-small { width: 30px !important; height: 43px !important; }
+
+    .game-message {
+      position: absolute;
+      top: 183px;
+      left: 18px;
+      right: 18px;
+      max-width: none !important;
+      font-size: 11px !important;
+      line-height: 1.35;
+      min-height: 32px !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .game-error {
+      position: absolute;
+      top: 218px;
+      left: 12px;
+      right: 12px;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .my-hand {
+      position: absolute !important;
+      left: 7px;
+      right: 7px;
+      bottom: 12px;
+      width: auto !important;
+      gap: 5px !important;
+    }
+    .hand-cards {
+      width: 100%;
+      max-width: 320px !important;
+      gap: 5px !important;
+      align-content: center;
+    }
+    .hand-cards .player-card:not(.player-card-small) {
+      width: 48px !important;
+      height: 68px !important;
+    }
+    .hand-cards .player-card:not(.player-card-small) div { font-size: 11px !important; }
+    .hand-cards .player-card:not(.player-card-small) div div { font-size: 9px !important; }
+    .my-hand > div:last-child { font-size: 11px !important; }
+
+    .scoreboard { gap: 6px 12px !important; padding: 0 8px; }
+    .scoreboard > div { font-size: 11px !important; }
+    .game-actions { gap: 8px !important; }
+    .game-actions button { min-height: 42px; padding: 9px 13px !important; }
+  }
+
+  @media (max-width: 360px) {
+    .board-table { min-height: 490px !important; height: 490px !important; }
+    .board-middle { grid-template-columns: 66px minmax(0,1fr) 66px; }
+    .opponent-left, .opponent-right, .opponent-left > div, .opponent-right > div { width: 66px; }
+    .opponent-left .player-card-small, .opponent-right .player-card-small { width: 20px !important; height: 29px !important; }
+    .hand-cards { max-width: 300px !important; gap: 4px !important; }
+    .hand-cards .player-card:not(.player-card-small) { width: 44px !important; height: 63px !important; }
+  }
+`;
 
 /* ---------- main app ---------- */
 
@@ -420,12 +563,13 @@ export default function App() {
   const seatByRel = (rel) => (mySeat === null ? rel : (rel + mySeat) % 4);
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", gap: 10 }}>
-        <h1 style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 20, margin: 0, textAlign: "center" }}>
+    <div className="app-shell" style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
+      <style>{responsiveStyles}</style>
+      <div className="app-content" style={{ width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", gap: 10 }}>
+        <h1 className="room-title" style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 20, margin: 0, textAlign: "center" }}>
           Big Two — Room {roomId}
         </h1>
-        <div style={{ textAlign: "center", color: "#cfcfcf", fontSize: 12 }}>
+        <div className="room-link" style={{ textAlign: "center", color: "#cfcfcf", fontSize: 12 }}>
           Bagikan link ini ke temanmu: <code>{window.location.href}</code>
         </div>
 
@@ -484,8 +628,9 @@ export default function App() {
 
         {gameReady && (
           <>
-            <div style={{ background: wood, borderRadius: 20, padding: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+            <div className="board-shell" style={{ background: wood, borderRadius: 20, padding: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
               <div
+                className="board-table"
                 style={{
                   background: `radial-gradient(ellipse at center, ${navy} 0%, ${navyDark} 100%)`,
                   borderRadius: 16,
@@ -498,10 +643,14 @@ export default function App() {
                   gap: 10,
                 }}
               >
-                <SeatRow seat={seatByRel(2)} game={game} displayName={displayName} cream={cream} amIHost={amIHost} makeBot={makeBot} players={players} />
-                <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-                  <SeatRow seat={seatByRel(1)} game={game} displayName={displayName} cream={cream} vertical amIHost={amIHost} makeBot={makeBot} players={players} />
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minHeight: 100, justifyContent: "center" }}>
+                <div className="opponent-top">
+                  <SeatRow seat={seatByRel(2)} game={game} displayName={displayName} cream={cream} amIHost={amIHost} makeBot={makeBot} players={players} />
+                </div>
+                <div className="board-middle" style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="opponent-left">
+                    <SeatRow seat={seatByRel(1)} game={game} displayName={displayName} cream={cream} vertical amIHost={amIHost} makeBot={makeBot} players={players} />
+                  </div>
+                  <div className="center-play" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minHeight: 100, justifyContent: "center" }}>
                     {game.currentCombo ? (
                       <>
                         <div style={{ color: gold, fontSize: 11 }}>{displayName(game.currentCombo.ownerIdx)} — {game.currentCombo.label}</div>
@@ -515,14 +664,16 @@ export default function App() {
                       <div style={{ color: "rgba(245,239,224,0.5)", fontSize: 12 }}>Meja kosong</div>
                     )}
                   </div>
-                  <SeatRow seat={seatByRel(3)} game={game} displayName={displayName} cream={cream} vertical amIHost={amIHost} makeBot={makeBot} players={players} />
+                  <div className="opponent-right">
+                    <SeatRow seat={seatByRel(3)} game={game} displayName={displayName} cream={cream} vertical amIHost={amIHost} makeBot={makeBot} players={players} />
+                  </div>
                 </div>
 
-                <div style={{ color: cream, fontSize: 13, textAlign: "center", minHeight: 18, maxWidth: 520 }}>{game.message}</div>
-                {error && <div style={{ color: "#E08080", fontSize: 12 }}>{error}</div>}
+                <div className="game-message" style={{ color: cream, fontSize: 13, textAlign: "center", minHeight: 18, maxWidth: 520 }}>{game.message}</div>
+                {error && <div className="game-error" style={{ color: "#E08080", fontSize: 12 }}>{error}</div>}
 
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: "100%" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, maxWidth: 600 }}>
+                <div className="my-hand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: "100%" }}>
+                  <div className="hand-cards" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, maxWidth: 600 }}>
                     {(game.hands[mySeat] || []).map((c) => (
                       <CardFace key={cardKey(c)} card={c} selected={selected.has(cardKey(c))} onClick={() => toggleCard(c)} />
                     ))}
@@ -534,7 +685,7 @@ export default function App() {
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            <div className="scoreboard" style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} style={{ color: "#cfcfcf", fontSize: 12 }}>
                   {displayName(i)}: {game.wins[i]} menang
@@ -542,7 +693,7 @@ export default function App() {
               ))}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+            <div className="game-actions" style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
               {game.phase === "playing" && game.currentPlayer === mySeat && (
                 <>
                   <Button primary onClick={handlePlay}>
