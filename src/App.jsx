@@ -362,7 +362,7 @@ export default function App() {
     return (
       <div style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
         <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: 24, maxWidth: 380, width: "100%", color: cream }}>
-          <h1 style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 22, marginTop: 0 }}>Kartu 3 sampai 2</h1>
+          <h1 style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 22, marginTop: 0 }}>Big Two</h1>
           <p style={{ fontSize: 13, opacity: 0.85 }}>
             Masukkan kode room untuk gabung dengan temanmu, atau kosongkan untuk membuat room baru.
           </p>
@@ -388,7 +388,7 @@ export default function App() {
     <div style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", gap: 10 }}>
         <h1 style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 20, margin: 0, textAlign: "center" }}>
-          Kartu 3 sampai 2 — Room {roomId}
+          Big Two — Room {roomId}
         </h1>
         <div style={{ textAlign: "center", color: "#cfcfcf", fontSize: 12 }}>
           Bagikan link ini ke temanmu: <code>{window.location.href}</code>
@@ -409,7 +409,7 @@ export default function App() {
                   <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}>{players[seat]?.name || "Kosong (bot)"}</div>
                   {!players[seat] && (
                     <Button primary small onClick={() => sitDown(seat)}>
-                      Duduk
+                     Duduk
                     </Button>
                   )}
                 </div>
