@@ -551,6 +551,7 @@ export default function App() {
             <SupportButton />
             <div style={{ color: "#bdb7aa", fontSize: 10, marginTop: 7 }}>
               Suka Big Two? Dukunganmu membantu pengembangan game.
+                      @Ralou 2026
             </div>
           </div>
         </div>
