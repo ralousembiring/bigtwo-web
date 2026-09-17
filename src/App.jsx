@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "./firebase";
 import { ref, onValue, runTransaction, set } from "firebase/database";
+import { UndercoverGame } from "./Undercover.jsx";
 import {
   SUITS,
   rankLabel,
@@ -268,7 +269,7 @@ const responsiveStyles = `
 
 /* ---------- main app ---------- */
 
-export default function App() {
+export function BigTwoGame() {
   const [roomId, setRoomId] = useState(() => new URLSearchParams(window.location.search).get("room") || "");
   const [roomInput, setRoomInput] = useState(roomId);
   const [joined, setJoined] = useState(false);
@@ -754,4 +755,78 @@ function SeatRow({ seat, game, displayName, cream, vertical, amIHost, makeBot, p
       )}
     </div>
   );
+}
+
+function HomeHub() {
+  const navigate = (game) => {
+    const url = new URL(window.location.href);
+    url.search = `?game=${game}`;
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  const cardStyle = {
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(201,162,39,0.25)",
+    borderRadius: 16,
+    padding: 18,
+    color: "#F5EFE0",
+    cursor: "pointer",
+    textAlign: "left",
+    transition: "transform .15s ease, background .15s ease",
+  };
+
+  return (
+    <div style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", color: "#F5EFE0", padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 760, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", padding: "24px 0 18px" }}>
+          <div style={{ fontSize: 12, letterSpacing: 2, opacity: .65 }}>RALOU GAME HUB</div>
+          <h1 style={{ fontFamily: "Georgia, serif", color: "#C9A227", fontSize: 32, margin: "8px 0" }}>Pilih Game</h1>
+          <div style={{ fontSize: 13, opacity: .75 }}>Satu web, beberapa game multiplayer.</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+          <button style={cardStyle} onClick={() => navigate("big-two")}>
+            <div style={{ fontSize: 32 }}>🃏</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Big Two</div>
+            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Game kartu multiplayer yang sudah ada.</div>
+          </button>
+          <button style={cardStyle} onClick={() => navigate("undercover")}>
+            <div style={{ fontSize: 32 }}>🕵️</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Undercover</div>
+            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Cari pemain yang mendapat kata berbeda.</div>
+          </button>
+          <div style={{ ...cardStyle, opacity: .45, cursor: "default" }}>
+            <div style={{ fontSize: 32 }}>🐍</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Ular Tangga</div>
+            <div style={{ fontSize: 12, marginTop: 5 }}>Segera hadir.</div>
+          </div>
+          <div style={{ ...cardStyle, opacity: .45, cursor: "default" }}>
+            <div style={{ fontSize: 32 }}>♟️</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Chess</div>
+            <div style={{ fontSize: 12, marginTop: 5 }}>Segera hadir.</div>
+          </div>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, opacity: .5 }}>@Ralou 2026</div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const handler = () => force((v) => v + 1);
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
+  return <GameRouter />;
+}
+
+function GameRouter() {
+  const params = new URLSearchParams(window.location.search);
+  const game = params.get("game");
+  const room = params.get("room");
+  if (game === "undercover") return <UndercoverGame />;
+  if (game === "big-two" || room) return <BigTwoGame />;
+  return <HomeHub />;
 }
