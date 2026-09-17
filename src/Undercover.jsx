@@ -101,13 +101,33 @@ export function UndercoverGame() {
     window.history.replaceState({}, "", url);
   }
 
-  async function sitDown(seat) {
-    if (!name.trim()) return setError("Isi nama dulu ya.");
-    const result = await runTransaction(ref(db, `undercoverRooms/${roomId}/players/${seat}`), (current) => current || { name: name.trim() });
-    if (!result.committed) return setError("Kursi itu sudah diambil.");
-    setMySeat(seat); setError("");
+ async function sitDown(seat) {
+  if (!name.trim()) {
+    setError("Isi nama dulu ya.");
+    return;
   }
 
+  try {
+    const result = await runTransaction(
+      ref(db, `undercoverRooms/${roomId}/players/${seat}`),
+      (current) => {
+        if (current) return;
+        return { name: name.trim() };
+      }
+    );
+
+    if (!result.committed) {
+      setError("Kursi itu sudah diambil.");
+      return;
+    }
+
+    setMySeat(seat);
+    setError("");
+  } catch (err) {
+    console.error("Gagal duduk:", err);
+    setError(`Gagal masuk kursi: ${err.message}`);
+  }
+}
   async function leaveSeat() {
     if (mySeat === null) return;
     await set(ref(db, `undercoverRooms/${roomId}/players/${mySeat}`), null);
