@@ -713,7 +713,7 @@ export function BigTwoGame() {
               marginTop: 0,
             }}
           >
-            Big Two
+           🃏Big Two
           </h1>
 
           <p style={{ fontSize: 13, opacity: 0.85 }}>
@@ -808,7 +808,7 @@ export function BigTwoGame() {
             textAlign: "center",
           }}
         >
-          Big Two — Room {roomId}
+         🃏Big Two — Room {roomId}
         </h1>
 
         <div
