@@ -1334,12 +1334,12 @@ function HomeHub() {
           <button style={cardStyle} onClick={() => navigate("big-two")}>
             <div style={{ fontSize: 32 }}>🃏</div>
             <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Big Two</div>
-            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Game kartu multiplayer yang sudah ada.</div>
+            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Game kartu multiplayer.</div>
           </button>
           <button style={cardStyle} onClick={() => navigate("undercover")}>
             <div style={{ fontSize: 32 }}>🕵️</div>
             <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Undercover</div>
-            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Cari pemain yang mendapat kata berbeda.</div>
+            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Cari pemain yang mendapat kata berbeda (Undercover) dan Mr.White.</div>
           </button>
           <button
   style={cardStyle}
@@ -1364,8 +1364,7 @@ function HomeHub() {
       marginTop: 5,
     }}
   >
-    Game papan multiplayer dengan dadu,
-    ular, dan tangga.
+    Game papan (Ular Tangga) multipalyer.
   </div>
 </button>
           <div style={{ ...cardStyle, opacity: .45, cursor: "default" }}>
