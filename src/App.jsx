@@ -549,7 +549,7 @@ export function BigTwoGame() {
             {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
           </Button>
           <div style={{ textAlign: "center", marginTop: 14 }}>
-            <SupportButton />
+            
             <div style={{ color: "#bdb7aa", fontSize: 10, marginTop: 7 }}>
               Suka Big Two? Dukunganmu membantu pengembangan game.
                       @Ralou 2026
@@ -715,7 +715,7 @@ export function BigTwoGame() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "center", marginTop: 2 }}>
-              <SupportButton />
+              
             </div>
           </>
         )}
@@ -806,7 +806,17 @@ function HomeHub() {
             <div style={{ fontSize: 12, marginTop: 5 }}>Segera hadir.</div>
           </div>
         </div>
-        <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, opacity: .5 }}>@Ralou 2026</div>
+                <div style={{ textAlign: "center", marginTop: 20 }}>
+          <SupportButton />
+
+          <div style={{ fontSize: 10, opacity: .5, marginTop: 7 }}>
+            Suka game di Ralou Game Hub? Dukunganmu membantu pengembangan game.
+          </div>
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, opacity: .5 }}>
+          @Ralou 2026
+        </div>
       </div>
     </div>
   );
