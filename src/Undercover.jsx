@@ -38,6 +38,14 @@ const BOT_CLUES = {
   Truk: ["kendaraan", "besar", "bisa angkkut barang", "ada bak belakang"],
   rumah: ["tempat tinggal", "ada atap", "ada pintu", "bisa punya halaman"],
   apartemen: ["tempat tinggal", "ada banyak lantai", "ada unit", "bisa sewa"],
+  Kipas: ["benda", "untuk angin", "bisa listrik", "ada baling-baling"],
+  AC: ["benda", "untuk dingin", "pakai listrik", "ada remote"],
+  Meja: ["benda", "untuk meletakkan", "ada kaki", "bisa di ruang tamu"],
+  Kursi: ["benda", "untuk duduk", "ada sandaran", "bisa di ruang makan"],
+  Komputer: ["benda", "untuk bekerja", "ada layar", "bisa pakai keyboard"],
+  Laptop: ["benda", "untuk bekerja", "bisa dibawa", "ada baterai"],
+  Lampu: ["benda", "untuk penerangan", "ada bohlam", "bisa dinyalakan"],
+  Senter: ["benda", "untuk penerangan", "bisa dibawa", "pakai baterai"],
 };
 
 const DEFAULT_CLUES = ["menarik", "sering ditemui", "cukup umum", "bisa dikenal banyak orang"];
@@ -67,6 +75,10 @@ const WORD_PAIRS = [
   ["Buku", "Majalah"],
   ["Mobil", "Truk"],
   ["Rumah", "Apartemen"],
+  ["Kipas", "AC"],
+  ["Meja", "Kursi"],
+  ["Komputer", "Laptop"],
+  ["Lampu","Senter"],
 ];
 
 // Selalu ada 1 Undercover. Mulai dari 4 pemain, tambahkan 1 Mr. White juga.
