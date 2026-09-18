@@ -274,7 +274,6 @@ export function BigTwoGame() {
   const [roomId, setRoomId] = useState(() => new URLSearchParams(window.location.search).get("room") || "");
   const [roomInput, setRoomInput] = useState(roomId);
   const [joined, setJoined] = useState(false);
-
   const [players, setPlayers] = useState([null, null, null, null]);
   const [game, setGame] = useState(null);
   const [mySeat, setMySeat] = useState(null);
@@ -293,8 +292,10 @@ export function BigTwoGame() {
 
   function enterRoom(id) {
     const clean = id.trim().toUpperCase() || randomRoomCode();
+
     setRoomId(clean);
     setJoined(true);
+
     const url = new URL(window.location.href);
     url.searchParams.set("room", clean);
     window.history.replaceState({}, "", url);
@@ -303,22 +304,34 @@ export function BigTwoGame() {
   // subscribe to players & game once a room is chosen
   useEffect(() => {
     if (!joined || !roomId) return;
+
     const playersRef = ref(db, `rooms/${roomId}/players`);
     const gameRef = ref(db, `rooms/${roomId}/game`);
+
     const unsub1 = onValue(playersRef, (snap) => {
       const val = snap.val();
-      setPlayers(val ? [val[0] || null, val[1] || null, val[2] || null, val[3] || null] : [null, null, null, null]);
+
+      setPlayers(
+        val
+          ? [val[0] || null, val[1] || null, val[2] || null, val[3] || null]
+          : [null, null, null, null]
+      );
     });
+
     const unsub2 = onValue(gameRef, (snap) => {
       setGame(snap.val());
     });
+
     return () => {
       unsub1();
       unsub2();
     };
   }, [joined, roomId]);
 
-  const occupiedSeats = players.map((p, i) => (p ? i : null)).filter((i) => i !== null);
+  const occupiedSeats = players
+    .map((p, i) => (p ? i : null))
+    .filter((i) => i !== null);
+
   const hostSeat = occupiedSeats.length ? Math.min(...occupiedSeats) : null;
   const amIHost = mySeat !== null && mySeat === hostSeat;
 
@@ -327,15 +340,19 @@ export function BigTwoGame() {
       setError("Isi nama dulu ya.");
       return;
     }
+
     const seatRef = ref(db, `rooms/${roomId}/players/${seat}`);
+
     const result = await runTransaction(seatRef, (current) => {
-      if (current) return; // abort: seat already taken
+      if (current) return;
       return { name: nameDraft.trim() };
     });
+
     if (!result.committed) {
       setError("Kursi itu baru saja diisi orang lain, pilih kursi lain.");
       return;
     }
+
     setMySeat(seat);
     setError("");
   }
@@ -347,70 +364,125 @@ export function BigTwoGame() {
   async function startGame() {
     const g = dealNewRound([0, 0, 0, 0]);
     g.message = `${displayName(g.startingPlayer)} memegang 3♦ dan memulai.`;
+
     await set(ref(db, `rooms/${roomId}/game`), g);
   }
+
   async function nextRound() {
     const g = dealNewRound(game?.wins);
     g.message = `${displayName(g.startingPlayer)} memegang 3♦ dan memulai.`;
+
     await set(ref(db, `rooms/${roomId}/game`), g);
   }
 
   async function playCards(cards) {
     setError("");
+
     const gameRef = ref(db, `rooms/${roomId}/game`);
     let failReason = null;
+
     await runTransaction(gameRef, (current) => {
-      if (!current || current.phase !== "playing" || current.currentPlayer !== mySeat) return; // abort silently (stale click)
+      if (
+        !current ||
+        current.phase !== "playing" ||
+        current.currentPlayer !== mySeat
+      ) {
+        return;
+      }
+
       const combo = classifySelection(cards);
+
       if (!combo) {
         failReason = "Kombinasi tidak valid.";
-        return; // abort
+        return;
       }
-      if (!current.firstPlayDone && current.startingPlayer === mySeat && !cards.some((c) => c.rank === 3 && c.suit === "D")) {
+
+      if (
+        !current.firstPlayDone &&
+        current.startingPlayer === mySeat &&
+        !cards.some((c) => c.rank === 3 && c.suit === "D")
+      ) {
         failReason = "Kombinasi pertamamu wajib menyertakan 3♦.";
         return;
       }
+
       if (current.currentCombo) {
         if (current.currentCombo.size !== combo.size) {
           failReason = `Harus memainkan ${current.currentCombo.size} kartu.`;
           return;
         }
+
         if (!comboBeats(combo, current.currentCombo)) {
           failReason = `Kombinasi tidak lebih tinggi dari ${current.currentCombo.label} di meja.`;
           return;
         }
       }
+
       const keys = new Set(cards.map(cardKey));
       const newHands = [...current.hands];
-      newHands[mySeat] = current.hands[mySeat].filter((c) => !keys.has(cardKey(c)));
+
+      newHands[mySeat] = current.hands[mySeat].filter(
+        (c) => !keys.has(cardKey(c))
+      );
+
       let next = {
         ...current,
         hands: newHands,
-        currentCombo: { ...combo, ownerIdx: mySeat, cards },
+        currentCombo: {
+          ...combo,
+          ownerIdx: mySeat,
+          cards,
+        },
         firstPlayDone: true,
         passCount: 0,
         message: `${displayName(mySeat)} memainkan ${combo.label}.`,
-        log: [...(current.log || []).slice(-8), `${displayName(mySeat)}: ${combo.label}`],
+        log: [
+          ...(current.log || []).slice(-8),
+          `${displayName(mySeat)}: ${combo.label}`,
+        ],
       };
+
       if (newHands[mySeat].length === 0) {
         const wins = [...current.wins];
         wins[mySeat] += 1;
-        next = { ...next, phase: "roundover", wins, message: `${displayName(mySeat)} menghabiskan kartu dan menang ronde ini!` };
+
+        next = {
+          ...next,
+          phase: "roundover",
+          wins,
+          message: `${displayName(mySeat)} menghabiskan kartu dan menang ronde ini!`,
+        };
       } else {
         next.currentPlayer = (mySeat + 1) % 4;
       }
+
       return next;
     });
-    if (failReason) setError(failReason);
-    else setSelected(new Set());
+
+    if (failReason) {
+      setError(failReason);
+    } else {
+      setSelected(new Set());
+    }
   }
 
   async function passTurn() {
     setError("");
+
     const gameRef = ref(db, `rooms/${roomId}/game`);
+
     await runTransaction(gameRef, (current) => {
-      if (!current || current.phase !== "playing" || current.currentPlayer !== mySeat || !current.currentCombo) return;
+      if (
+        !current ||
+        current.phase !== "playing" ||
+        current.currentPlayer !== mySeat ||
+        !current.currentCombo
+      ) {
+        return;
+      }
+
       const nextPass = current.passCount + 1;
+
       if (nextPass >= 3) {
         return {
           ...current,
@@ -418,15 +490,22 @@ export function BigTwoGame() {
           passCount: 0,
           currentPlayer: current.currentCombo.ownerIdx,
           message: `${displayName(mySeat)} pass. Meja bersih — giliran ${displayName(current.currentCombo.ownerIdx)}.`,
-          log: [...(current.log || []).slice(-8), `${displayName(mySeat)}: pass (meja bersih)`],
+          log: [
+            ...(current.log || []).slice(-8),
+            `${displayName(mySeat)}: pass (meja bersih)`,
+          ],
         };
       }
+
       return {
         ...current,
         passCount: nextPass,
         currentPlayer: (mySeat + 1) % 4,
         message: `${displayName(mySeat)} pass.`,
-        log: [...(current.log || []).slice(-8), `${displayName(mySeat)}: pass`],
+        log: [
+          ...(current.log || []).slice(-8),
+          `${displayName(mySeat)}: pass`,
+        ],
       };
     });
   }
@@ -434,31 +513,61 @@ export function BigTwoGame() {
   // host runs bot turns for empty seats
   useEffect(() => {
     if (!amIHost || !game || game.phase !== "playing") return;
+
     const actor = game.currentPlayer;
-    if (players[actor]) return; // seat is human, wait for them
+
+    if (players[actor]) return;
+
     botTimer.current = setTimeout(async () => {
       const gameRef = ref(db, `rooms/${roomId}/game`);
+
       await runTransaction(gameRef, (current) => {
-        if (!current || current.phase !== "playing" || current.currentPlayer !== actor) return;
+        if (
+          !current ||
+          current.phase !== "playing" ||
+          current.currentPlayer !== actor
+        ) {
+          return;
+        }
+
         const hand = current.hands[actor];
         const mustLead = !current.currentCombo;
+
         let chosen = null;
+
         if (mustLead) {
           if (!current.firstPlayDone && current.startingPlayer === actor) {
-            chosen = { cards: [hand.reduce((m, c) => (cardValue(c) < cardValue(m) ? c : m), hand[0])] };
+            chosen = {
+              cards: [
+                hand.reduce(
+                  (m, c) => (cardValue(c) < cardValue(m) ? c : m),
+                  hand[0]
+                ),
+              ],
+            };
           } else {
             const multi = getMultiLeadOptions(hand);
+
             chosen =
               multi.length > 0 && Math.random() < 0.55
                 ? multi[0]
-                : { cards: [hand.reduce((m, c) => (cardValue(c) < cardValue(m) ? c : m), hand[0])] };
+                : {
+                    cards: [
+                      hand.reduce(
+                        (m, c) => (cardValue(c) < cardValue(m) ? c : m),
+                        hand[0]
+                      ),
+                    ],
+                  };
           }
         } else {
           const plays = findBeatingPlays(hand, current.currentCombo);
           chosen = plays.length > 0 ? plays[0] : null;
         }
+
         if (!chosen) {
           const nextPass = current.passCount + 1;
+
           if (nextPass >= 3) {
             return {
               ...current,
@@ -466,61 +575,103 @@ export function BigTwoGame() {
               passCount: 0,
               currentPlayer: current.currentCombo.ownerIdx,
               message: `${displayName(actor)} pass. Meja bersih — giliran ${displayName(current.currentCombo.ownerIdx)}.`,
-              log: [...(current.log || []).slice(-8), `${displayName(actor)}: pass (meja bersih)`],
+              log: [
+                ...(current.log || []).slice(-8),
+                `${displayName(actor)}: pass (meja bersih)`,
+              ],
             };
           }
+
           return {
             ...current,
             passCount: nextPass,
             currentPlayer: (actor + 1) % 4,
             message: `${displayName(actor)} pass.`,
-            log: [...(current.log || []).slice(-8), `${displayName(actor)}: pass`],
+            log: [
+              ...(current.log || []).slice(-8),
+              `${displayName(actor)}: pass`,
+            ],
           };
         }
+
         const combo = classifySelection(chosen.cards);
         const keys = new Set(chosen.cards.map(cardKey));
         const newHands = [...current.hands];
+
         newHands[actor] = hand.filter((c) => !keys.has(cardKey(c)));
+
         let next = {
           ...current,
           hands: newHands,
-          currentCombo: { ...combo, ownerIdx: actor, cards: chosen.cards },
+          currentCombo: {
+            ...combo,
+            ownerIdx: actor,
+            cards: chosen.cards,
+          },
           firstPlayDone: true,
           passCount: 0,
           message: `${displayName(actor)} memainkan ${combo.label}.`,
-          log: [...(current.log || []).slice(-8), `${displayName(actor)}: ${combo.label}`],
+          log: [
+            ...(current.log || []).slice(-8),
+            `${displayName(actor)}: ${combo.label}`,
+          ],
         };
+
         if (newHands[actor].length === 0) {
           const wins = [...current.wins];
           wins[actor] += 1;
-          next = { ...next, phase: "roundover", wins, message: `${displayName(actor)} menghabiskan kartu dan menang ronde ini!` };
+
+          next = {
+            ...next,
+            phase: "roundover",
+            wins,
+            message: `${displayName(actor)} menghabiskan kartu dan menang ronde ini!`,
+          };
         } else {
           next.currentPlayer = (actor + 1) % 4;
         }
+
         return next;
       });
     }, 900);
+
     return () => clearTimeout(botTimer.current);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, players, amIHost]);
 
   const toggleCard = (card) => {
-    if (!game || game.phase !== "playing" || game.currentPlayer !== mySeat) return;
+    if (
+      !game ||
+      game.phase !== "playing" ||
+      game.currentPlayer !== mySeat
+    ) {
+      return;
+    }
+
     setSelected((prev) => {
       const next = new Set(prev);
       const k = cardKey(card);
+
       if (next.has(k)) next.delete(k);
       else next.add(k);
+
       return next;
     });
   };
+
   function handlePlay() {
     if (!game) return;
-    const cards = game.hands[mySeat].filter((c) => selected.has(cardKey(c)));
+
+    const cards = game.hands[mySeat].filter((c) =>
+      selected.has(cardKey(c))
+    );
+
     if (cards.length === 0) {
       setError("Pilih kartu dulu.");
       return;
     }
+
     playCards(cards);
   }
 
@@ -530,32 +681,80 @@ export function BigTwoGame() {
   const navyDark = "#071730";
   const wood = "linear-gradient(180deg, #6B4226, #3E2519)";
 
-  /* ---------- room join screen ---------- */
-
+  // ---------- room join screen ----------
   if (!joined) {
     return (
-      <div style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-        <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 16, padding: 24, maxWidth: 380, width: "100%", color: cream }}>
-          <h1 style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 22, marginTop: 0 }}>Big Two</h1>
+      <div
+        style={{
+          fontFamily: "system-ui, sans-serif",
+          background: "#1a1310",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 380,
+            width: "100%",
+            color: cream,
+          }}
+        >
+          <h1
+            style={{
+              fontFamily: "Georgia, serif",
+              color: gold,
+              fontSize: 22,
+              marginTop: 0,
+            }}
+          >
+            Big Two
+          </h1>
+
           <p style={{ fontSize: 13, opacity: 0.85 }}>
-            Masukkan kode room untuk gabung dengan temanmu, atau kosongkan untuk membuat room baru.
+            Masukkan kode room untuk gabung dengan temanmu, atau kosongkan untuk
+            membuat room baru.
           </p>
+
           <input
             value={roomInput}
             onChange={(e) => setRoomInput(e.target.value)}
             placeholder="Kode room (kosongkan untuk buat baru)"
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #C9A227", width: "100%", marginBottom: 12, boxSizing: "border-box" }}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: "1px solid #C9A227",
+              width: "100%",
+              marginBottom: 12,
+              boxSizing: "border-box",
+            }}
           />
+
           <Button primary onClick={() => enterRoom(roomInput)}>
-            {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
-          </Button>
-          <div style={{ textAlign: "center", marginTop: 14 }}>
-            
-            <div style={{ color: "#bdb7aa", fontSize: 10, marginTop: 7 }}>
-              Suka Big Two? Dukunganmu membantu pengembangan game.
-                      @Ralou 2026
-            </div>
-          </div>
+  {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
+</Button>
+
+<div
+  style={{
+    display: "flex",
+    justifyContent: "center",
+    marginTop: 14,
+  }}
+>
+  <Button
+    onClick={() => {
+      window.history.pushState({}, "", window.location.pathname);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }}
+  >
+    ← Kembali ke Game Hub
+  </Button>
+</div>
         </div>
       </div>
     );
@@ -563,66 +762,228 @@ export function BigTwoGame() {
 
   const inLobby = mySeat === null;
   const gameReady = game && game.phase !== "lobby";
-  const seatByRel = (rel) => (mySeat === null ? rel : (rel + mySeat) % 4);
+  const seatByRel = (rel) =>
+    mySeat === null ? rel : (rel + mySeat) % 4;
+  function backToGameHub() {
+  window.history.pushState({}, "", window.location.pathname);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+  function backToGameHub() {
+    window.history.pushState({}, "", window.location.pathname);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
 
   return (
-    <div className="app-shell" style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", padding: 16, display: "flex", justifyContent: "center" }}>
+    <div
+      className="app-shell"
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        background: "#1a1310",
+        minHeight: "100vh",
+        padding: 16,
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
       <style>{responsiveStyles}</style>
-      <div className="app-content" style={{ width: "100%", maxWidth: 700, display: "flex", flexDirection: "column", gap: 10 }}>
-        <h1 className="room-title" style={{ fontFamily: "Georgia, serif", color: gold, fontSize: 20, margin: 0, textAlign: "center" }}>
+
+      <div
+        className="app-content"
+        style={{
+          width: "100%",
+          maxWidth: 700,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        <h1
+          className="room-title"
+          style={{
+            fontFamily: "Georgia, serif",
+            color: gold,
+            fontSize: 20,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
           Big Two — Room {roomId}
         </h1>
-        <div className="room-link" style={{ textAlign: "center", color: "#cfcfcf", fontSize: 12 }}>
+
+        <div
+          className="room-link"
+          style={{
+            textAlign: "center",
+            color: "#cfcfcf",
+            fontSize: 12,
+          }}
+        >
           Bagikan link ini ke temanmu: <code>{window.location.href}</code>
         </div>
 
         {inLobby && (
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: 16, color: cream }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              borderRadius: 14,
+              padding: 16,
+              color: cream,
+            }}
+          >
             <input
               value={nameDraft}
               onChange={(e) => setNameDraft(e.target.value)}
               placeholder="Nama kamu"
-              style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #C9A227", marginBottom: 12, width: 200 }}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid #C9A227",
+                marginBottom: 12,
+                width: 200,
+              }}
             />
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
               {[0, 1, 2, 3].map((seat) => (
-                <div key={seat} style={{ background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: 12, minWidth: 130, textAlign: "center" }}>
-                  <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>Kursi {seat + 1}</div>
-                  <div style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}>{players[seat]?.name || "Kosong (bot)"}</div>
+                <div
+                  key={seat}
+                  style={{
+                    background: "rgba(0,0,0,0.25)",
+                    borderRadius: 10,
+                    padding: 12,
+                    minWidth: 130,
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      opacity: 0.8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Kursi {seat + 1}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 14,
+                      marginBottom: 8,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {players[seat]?.name || "Kosong (bot)"}
+                  </div>
+
                   {!players[seat] && (
-                    <Button primary small onClick={() => sitDown(seat)}>
-                     Duduk
+                    <Button
+                      primary
+                      small
+                      onClick={() => sitDown(seat)}
+                    >
+                      Duduk
                     </Button>
                   )}
                 </div>
               ))}
             </div>
-            {error && <div style={{ color: "#E08080", fontSize: 12, marginTop: 10 }}>{error}</div>}
+
+            {error && (
+              <div
+                style={{
+                  color: "#E08080",
+                  fontSize: 12,
+                  marginTop: 10,
+                }}
+              >
+                {error}
+              </div>
+            )}
           </div>
         )}
 
         {!inLobby && !gameReady && (
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: 16, color: cream, textAlign: "center" }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              borderRadius: 14,
+              padding: 16,
+              color: cream,
+              textAlign: "center",
+            }}
+          >
             <div style={{ marginBottom: 10 }}>
-              Kamu duduk di Kursi {mySeat + 1} ({displayName(mySeat)}). {amIHost ? "Kamu host." : "Menunggu host memulai game..."}
+              Kamu duduk di Kursi {mySeat + 1} ({displayName(mySeat)}).{" "}
+              {amIHost
+                ? "Kamu host."
+                : "Menunggu host memulai game..."}
             </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 14 }}>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                justifyContent: "center",
+                flexWrap: "wrap",
+                marginBottom: 14,
+              }}
+            >
               {[0, 1, 2, 3].map((seat) => (
-                <div key={seat} style={{ background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "8px 12px", minWidth: 110 }}>
-                  <div style={{ fontSize: 11, opacity: 0.8 }}>Kursi {seat + 1}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: players[seat] ? 6 : 0 }}>
+                <div
+                  key={seat}
+                  style={{
+                    background: "rgba(0,0,0,0.25)",
+                    borderRadius: 10,
+                    padding: "8px 12px",
+                    minWidth: 110,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      opacity: 0.8,
+                    }}
+                  >
+                    Kursi {seat + 1}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      marginBottom: players[seat] ? 6 : 0,
+                    }}
+                  >
                     {players[seat]?.name || "Kosong (bot)"}
                   </div>
-                  {amIHost && players[seat] && seat !== mySeat && (
-                    <Button small onClick={() => makeBot(seat)}>
-                      Jadikan Bot
-                    </Button>
-                  )}
+
+                  {amIHost &&
+                    players[seat] &&
+                    seat !== mySeat && (
+                      <Button
+                        small
+                        onClick={() => makeBot(seat)}
+                      >
+                        Jadikan Bot
+                      </Button>
+                    )}
                 </div>
               ))}
             </div>
+
             {amIHost && (
-              <Button primary onClick={startGame} disabled={occupiedSeats.length < 1}>
+              <Button
+                primary
+                onClick={startGame}
+                disabled={occupiedSeats.length < 1}
+              >
                 Mulai Game
               </Button>
             )}
@@ -631,7 +992,15 @@ export function BigTwoGame() {
 
         {gameReady && (
           <>
-            <div className="board-shell" style={{ background: wood, borderRadius: 20, padding: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+            <div
+              className="board-shell"
+              style={{
+                background: wood,
+                borderRadius: 20,
+                padding: 10,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              }}
+            >
               <div
                 className="board-table"
                 style={{
@@ -647,76 +1016,253 @@ export function BigTwoGame() {
                 }}
               >
                 <div className="opponent-top">
-                  <SeatRow seat={seatByRel(2)} game={game} displayName={displayName} cream={cream} amIHost={amIHost} makeBot={makeBot} players={players} />
+                  <SeatRow
+                    seat={seatByRel(2)}
+                    game={game}
+                    displayName={displayName}
+                    cream={cream}
+                    amIHost={amIHost}
+                    makeBot={makeBot}
+                    players={players}
+                  />
                 </div>
-                <div className="board-middle" style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
+
+                <div
+                  className="board-middle"
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <div className="opponent-left">
-                    <SeatRow seat={seatByRel(1)} game={game} displayName={displayName} cream={cream} vertical amIHost={amIHost} makeBot={makeBot} players={players} />
+                    <SeatRow
+                      seat={seatByRel(1)}
+                      game={game}
+                      displayName={displayName}
+                      cream={cream}
+                      vertical
+                      amIHost={amIHost}
+                      makeBot={makeBot}
+                      players={players}
+                    />
                   </div>
-                  <div className="center-play" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minHeight: 100, justifyContent: "center" }}>
+
+                  <div
+                    className="center-play"
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 6,
+                      minHeight: 100,
+                      justifyContent: "center",
+                    }}
+                  >
                     {game.currentCombo ? (
                       <>
-                        <div style={{ color: gold, fontSize: 11 }}>{displayName(game.currentCombo.ownerIdx)} — {game.currentCombo.label}</div>
-                        <div style={{ display: "flex", gap: 4 }}>
+                        <div
+                          style={{
+                            color: gold,
+                            fontSize: 11,
+                          }}
+                        >
+                          {displayName(game.currentCombo.ownerIdx)} —{" "}
+                          {game.currentCombo.label}
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 4,
+                          }}
+                        >
                           {game.currentCombo.cards.map((c) => (
-                            <CardFace key={cardKey(c)} card={c} small />
+                            <CardFace
+                              key={cardKey(c)}
+                              card={c}
+                              small
+                            />
                           ))}
                         </div>
                       </>
                     ) : (
-                      <div style={{ color: "rgba(245,239,224,0.5)", fontSize: 12 }}>Meja kosong</div>
+                      <div
+                        style={{
+                          color: "rgba(245,239,224,0.5)",
+                          fontSize: 12,
+                        }}
+                      >
+                        Meja kosong
+                      </div>
                     )}
                   </div>
+
                   <div className="opponent-right">
-                    <SeatRow seat={seatByRel(3)} game={game} displayName={displayName} cream={cream} vertical amIHost={amIHost} makeBot={makeBot} players={players} />
+                    <SeatRow
+                      seat={seatByRel(3)}
+                      game={game}
+                      displayName={displayName}
+                      cream={cream}
+                      vertical
+                      amIHost={amIHost}
+                      makeBot={makeBot}
+                      players={players}
+                    />
                   </div>
                 </div>
 
-                <div className="game-message" style={{ color: cream, fontSize: 13, textAlign: "center", minHeight: 18, maxWidth: 520 }}>{game.message}</div>
-                {error && <div className="game-error" style={{ color: "#E08080", fontSize: 12 }}>{error}</div>}
+                <div
+                  className="game-message"
+                  style={{
+                    color: cream,
+                    fontSize: 13,
+                    textAlign: "center",
+                    minHeight: 18,
+                    maxWidth: 520,
+                  }}
+                >
+                  {game.message}
+                </div>
 
-                <div className="my-hand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: "100%" }}>
-                  <div className="hand-cards" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, maxWidth: 600 }}>
+                {error && (
+                  <div
+                    className="game-error"
+                    style={{
+                      color: "#E08080",
+                      fontSize: 12,
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <div
+                  className="my-hand"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 6,
+                    width: "100%",
+                  }}
+                >
+                  <div
+                    className="hand-cards"
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      justifyContent: "center",
+                      gap: 6,
+                      maxWidth: 600,
+                    }}
+                  >
                     {(game.hands[mySeat] || []).map((c) => (
-                      <CardFace key={cardKey(c)} card={c} selected={selected.has(cardKey(c))} onClick={() => toggleCard(c)} />
+                      <CardFace
+                        key={cardKey(c)}
+                        card={c}
+                        selected={selected.has(cardKey(c))}
+                        onClick={() => toggleCard(c)}
+                      />
                     ))}
                   </div>
-                  <div style={{ color: cream, fontSize: 12 }}>
-                    {displayName(mySeat)} {game.currentPlayer === mySeat && game.phase === "playing" ? "(giliranmu)" : ""}
+
+                  <div
+                    style={{
+                      color: cream,
+                      fontSize: 12,
+                    }}
+                  >
+                    {displayName(mySeat)}{" "}
+                    {game.currentPlayer === mySeat &&
+                    game.phase === "playing"
+                      ? "(giliranmu)"
+                      : ""}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="scoreboard" style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            <div
+              className="scoreboard"
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 14,
+                flexWrap: "wrap",
+              }}
+            >
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} style={{ color: "#cfcfcf", fontSize: 12 }}>
+                <div
+                  key={i}
+                  style={{
+                    color: "#cfcfcf",
+                    fontSize: 12,
+                  }}
+                >
                   {displayName(i)}: {game.wins[i]} menang
                 </div>
               ))}
             </div>
 
-            <div className="game-actions" style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-              {game.phase === "playing" && game.currentPlayer === mySeat && (
-                <>
-                  <Button primary onClick={handlePlay}>
-                    Mainkan Kartu ({selected.size})
-                  </Button>
-                  <Button disabled={!game.currentCombo} onClick={passTurn}>
-                    Pass
-                  </Button>
-                </>
-              )}
+            <div
+              className="game-actions"
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              {game.phase === "playing" &&
+                game.currentPlayer === mySeat && (
+                  <>
+                    <Button primary onClick={handlePlay}>
+                      Mainkan Kartu ({selected.size})
+                    </Button>
+
+                    <Button
+                      disabled={!game.currentCombo}
+                      onClick={passTurn}
+                    >
+                      Pass
+                    </Button>
+                  </>
+                )}
+
               {game.phase === "roundover" && amIHost && (
                 <Button primary onClick={nextRound}>
                   Ronde Berikutnya
                 </Button>
               )}
-              {game.phase === "roundover" && !amIHost && <div style={{ color: cream, fontSize: 12 }}>Menunggu host memulai ronde berikutnya...</div>}
+
+              {game.phase === "roundover" &&
+                !amIHost && (
+                  <div
+                    style={{
+                      color: cream,
+                      fontSize: 12,
+                    }}
+                  >
+                    Menunggu host memulai ronde berikutnya...
+                  </div>
+                )}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", marginTop: 2 }}>
-              
+            {/* TOMBOL KEMBALI KE GAME HUB */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginTop: 2,
+                marginBottom: 4,
+              }}
+            >
+              <Button onClick={backToGameHub}>
+                ← Kembali ke Game Hub
+              </Button>
             </div>
           </>
         )}
@@ -724,7 +1270,6 @@ export function BigTwoGame() {
     </div>
   );
 }
-
 function SeatRow({ seat, game, displayName, cream, vertical, amIHost, makeBot, players }) {
   const isTurn = game.phase === "playing" && game.currentPlayer === seat;
   const count = game.hands[seat] ? game.hands[seat].length : 13;
@@ -831,6 +1376,7 @@ function HomeHub() {
         </div>
                 <div style={{ textAlign: "center", marginTop: 20 }}>
           <SupportButton />
+          
 
           <div style={{ fontSize: 10, opacity: .5, marginTop: 7 }}>
             Suka game di Ralou Game Hub? Dukunganmu membantu pengembangan game.

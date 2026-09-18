@@ -522,16 +522,48 @@ export function UndercoverGame() {
     }
   }
 
-  if (!joined) {
+   if (!joined) {
     return (
-      <Shell>
-        <Panel>
-          <h1 style={{ fontFamily: "Georgia, serif", color: GOLD, marginTop: 0 }}>🕵️ Undercover</h1>
-          <p style={{ fontSize: 13, opacity: .8 }}>Buat room baru atau masukkan kode room temanmu.</p>
-          <input value={roomInput} onChange={(e) => setRoomInput(e.target.value)} placeholder="Kode room" style={inputStyle} />
-          <Button primary onClick={() => enterRoom(roomInput)}>{roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}</Button>
-        </Panel>
-      </Shell>
+      <EntryShell>
+        <h1
+          style={{
+            fontFamily: "Georgia, serif",
+            color: GOLD,
+            marginTop: 0,
+            marginBottom: 8,
+            fontSize: 26,
+            textAlign: "center",
+          }}
+        >
+          🕵️ Undercover
+        </h1>
+
+        <p
+          style={{
+            fontSize: 13,
+            opacity: 0.8,
+            marginTop: 0,
+            marginBottom: 16,
+            textAlign: "center",
+          }}
+        >
+          Buat room baru atau masukkan kode room temanmu.
+        </p>
+
+        <input
+          value={roomInput}
+          onChange={(e) => setRoomInput(e.target.value)}
+          placeholder="Kode room"
+          style={inputStyle}
+        />
+
+        <Button
+          primary
+          onClick={() => enterRoom(roomInput)}
+        >
+          {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
+        </Button>
+      </EntryShell>
     );
   }
 
@@ -539,9 +571,43 @@ export function UndercoverGame() {
     return (
       <Shell roomId={roomId}>
         <Panel>
-          <h2 style={{ marginTop: 0 }}>Lobby</h2>
-          <div style={{ fontSize: 12, opacity: .75, marginBottom: 10 }}>
-            Room: <b>{roomId}</b> — bagikan URL halaman ini ke teman.
+
+          <div
+            style={{
+              textAlign: "center",
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.7,
+              }}
+            >
+              Room
+            </div>
+
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: GOLD,
+                letterSpacing: 1,
+                marginTop: 3,
+              }}
+            >
+              {roomId}
+            </div>
+
+            <div
+              style={{
+                fontSize: 11,
+                opacity: 0.6,
+                marginTop: 5,
+              }}
+            >
+              Bagikan URL halaman ini ke teman.
+            </div>
           </div>
 
           {mySeat === null && (
@@ -552,135 +618,507 @@ export function UndercoverGame() {
                 placeholder="Nama kamu"
                 style={inputStyle}
               />
-              <div style={{ fontSize: 11, opacity: .65, marginBottom: 10 }}>
-                Pilih kursi kosong untuk masuk. Setelah duduk, kamu menjadi host jika belum ada host.
+
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.65,
+                  marginBottom: 12,
+                  textAlign: "center",
+                }}
+              >
+                Pilih kursi kosong untuk masuk.
+                Setelah duduk, kamu menjadi host jika belum ada host.
               </div>
             </>
           )}
 
           <div style={gridStyle}>
             {players.map((p, seat) => (
-              <div key={seat} style={{ ...seatStyle, border: seat === mySeat ? `1px solid ${GOLD}` : seatStyle.border }}>
-                <div style={{ fontSize: 11, opacity: .6 }}>Kursi {seat + 1}</div>
-                <div style={{ fontWeight: 700, margin: "5px 0 8px" }}>
+              <div
+                key={seat}
+                style={{
+                  ...seatStyle,
+                  border:
+                    seat === mySeat
+                      ? `1px solid ${GOLD}`
+                      : seatStyle.border,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    opacity: 0.6,
+                  }}
+                >
+                  Kursi {seat + 1}
+                </div>
+
+                <div
+                  style={{
+                    fontWeight: 700,
+                    margin: "5px 0 8px",
+                  }}
+                >
                   {p?.name || "Kosong"}
                 </div>
+
                 {!p && mySeat === null && (
-                  <Button primary onClick={() => sitDown(seat)}>Duduk</Button>
+                  <Button
+                    primary
+                    onClick={() => sitDown(seat)}
+                  >
+                    Duduk
+                  </Button>
                 )}
+
                 {p?.isBot && amHost && (
-                  <Button onClick={() => removeBot(seat)}>Hapus Bot</Button>
+                  <Button
+                    onClick={() => removeBot(seat)}
+                  >
+                    Hapus Bot
+                  </Button>
                 )}
-                {seat === mySeat && <div style={{ fontSize: 11, color: GOLD }}>✓ Kamu</div>}
+
+                {seat === mySeat && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: GOLD,
+                    }}
+                  >
+                    ✓ Kamu
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
           {mySeat !== null && (
-            <div style={{ marginTop: 12, padding: 11, borderRadius: 10, background: "rgba(201,162,39,.08)", fontSize: 12 }}>
-              Kamu duduk di <b>Kursi {mySeat + 1}</b>. {amHost ? "Kamu host." : "Menunggu host."}
+            <div
+              style={{
+                marginTop: 12,
+                padding: 11,
+                borderRadius: 10,
+                background: "rgba(201,162,39,.08)",
+                fontSize: 12,
+                textAlign: "center",
+              }}
+            >
+              Kamu duduk di <b>Kursi {mySeat + 1}</b>.{" "}
+              {amHost ? "Kamu host." : "Menunggu host."}
             </div>
           )}
 
           {amHost && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-              <Button primary onClick={addBot} disabled={occupied.length >= MAX_PLAYERS}>+ Tambah Bot</Button>
-              {mySeat !== null && <Button onClick={leaveSeat}>Keluar dari Kursi</Button>}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                justifyContent: "center",
+                marginTop: 12,
+              }}
+            >
+              <Button
+                primary
+                onClick={addBot}
+                disabled={occupied.length >= MAX_PLAYERS}
+              >
+                + Tambah Bot
+              </Button>
+
+              {mySeat !== null && (
+                <Button onClick={leaveSeat}>
+                  Keluar dari Kursi
+                </Button>
+              )}
             </div>
           )}
 
           {!amHost && mySeat !== null && (
-            <div style={{ marginTop: 12 }}>
-              <Button onClick={leaveSeat}>Keluar dari Kursi</Button>
+            <div
+              style={{
+                marginTop: 12,
+                textAlign: "center",
+              }}
+            >
+              <Button onClick={leaveSeat}>
+                Keluar dari Kursi
+              </Button>
             </div>
           )}
 
-          <div style={{ marginTop: 10, fontSize: 11, opacity: .65 }}>
-            Minimal 3 pemain untuk mulai. Role diacak otomatis: selalu ada 1 Undercover, dan mulai dari
-            4 pemain akan ada 1 Mr. White juga (pemain yang sama sekali tidak dapat kata). Bot bisa
-            mengisi kursi kosong, jadi kamu bisa main sendirian melawan bot — role kamu sendiri juga
-            random, bisa saja kamu yang jadi Mr. White.
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: 11,
+              opacity: 0.65,
+              lineHeight: 1.5,
+              textAlign: "center",
+            }}
+          >
+            Minimal 3 pemain untuk mulai. Role diacak otomatis:
+            selalu ada 1 Undercover, dan mulai dari 4 pemain akan ada
+            1 Mr. White juga. Bot bisa mengisi kursi kosong, jadi kamu
+            bisa main sendirian melawan bot.
           </div>
 
           {amHost && (
-            <div style={{ marginTop: 12 }}>
-              <Button primary onClick={startGame} disabled={occupied.length < 3}>
+            <div
+              style={{
+                marginTop: 14,
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <Button
+                primary
+                onClick={startGame}
+                disabled={occupied.length < 3}
+              >
                 Mulai Undercover ({occupied.length}/{MAX_PLAYERS})
               </Button>
             </div>
           )}
 
-          {error && <div style={errorStyle}>{error}</div>}
+          {error && (
+            <div style={errorStyle}>
+              {error}
+            </div>
+          )}
+
         </Panel>
       </Shell>
     );
   }
 
   const isActive = activePlayers.includes(mySeat);
-  const myTurnToClue = game?.phase === "clue" && game.currentSpeaker === mySeat;
+  const myTurnToClue =
+    game?.phase === "clue" &&
+    game.currentSpeaker === mySeat;
+
   const allClues = game?.clues || {};
-  const showEliminatedTag = ["result", "mrwhite_guess"].includes(game?.phase);
+
+  const showEliminatedTag = [
+    "result",
+    "mrwhite_guess",
+  ].includes(game?.phase);
 
   return (
     <Shell roomId={roomId}>
+
       <Panel>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <div><div style={{ fontSize: 11, opacity: .6 }}>ROOM</div><div style={{ fontWeight: 800, color: GOLD }}>{roomId}</div></div>
-          <div style={{ fontSize: 12 }}>{occupied.length}/{MAX_PLAYERS} pemain</div>
-          <Button onClick={leaveSeat}>Keluar</Button>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                opacity: 0.6,
+              }}
+            >
+              ROOM
+            </div>
+
+            <div
+              style={{
+                fontWeight: 800,
+                color: GOLD,
+              }}
+            >
+              {roomId}
+            </div>
+          </div>
+
+          <div
+            style={{
+              fontSize: 12,
+            }}
+          >
+            {occupied.length}/{MAX_PLAYERS} pemain
+          </div>
+
+         
         </div>
       </Panel>
 
       <Panel>
-        <h2 style={{ marginTop: 0, color: GOLD }}>{game?.phase === "finished" ? "Hasil Akhir" : game ? `Ronde ${game.round}` : "Menunggu permainan"}</h2>
-        {!game && <div style={{ opacity: .8, fontSize: 13 }}>Menunggu host memulai. Minimal 3 pemain.</div>}
-        {game && <div style={{ padding: 12, borderRadius: 10, background: "rgba(201,162,39,.08)", fontSize: 13, marginBottom: 14 }}>{game.message}</div>}
 
-        {game && <div style={gridStyle}>
-          {players.map((p, seat) => p && <div key={seat} style={{ ...seatStyle, opacity: isActive && !activePlayers.includes(seat) ? .35 : 1, border: game.currentSpeaker === seat ? `1px solid ${GOLD}` : seat === mySeat ? `1px solid rgba(201,162,39,.35)` : seatStyle.border }}>
-            <div style={{ fontSize: 15, fontWeight: 800 }}>{p.name}</div>
-            <div style={{ fontSize: 11, opacity: .65 }}>{seat === mySeat ? "Kamu" : p.isBot ? "🤖 Bot" : "Pemain"}{game.currentSpeaker === seat ? " • giliran clue" : ""}</div>
-            {(game.phase === "clue" || game.phase === "voting") && allClues[seat] && <div style={{ marginTop: 9, fontSize: 13, padding: 8, borderRadius: 8, background: "rgba(0,0,0,.2)" }}>“{allClues[seat]}”</div>}
-            {game.phase === "voting" && isActive && seat !== mySeat && <div style={{ marginTop: 9 }}><Button primary={vote === seat} onClick={() => castVote(seat)}>{vote === seat ? "✓ Dipilih" : "Vote"}</Button></div>}
-            {showEliminatedTag && game.eliminated === seat && <div style={{ marginTop: 8, color: GOLD, fontWeight: 800 }}>☠️ Tereliminasi</div>}
-          </div>)}
-        </div>}
+        <h2
+          style={{
+            marginTop: 0,
+            color: GOLD,
+            textAlign: "center",
+            fontFamily: "Georgia, serif",
+          }}
+        >
+          {game?.phase === "finished"
+            ? "Hasil Akhir"
+            : `Ronde ${game.round}`}
+        </h2>
 
-        {secret && game && game.phase !== "finished" && isActive && (
-          <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: "rgba(201,162,39,.12)", border: `1px solid rgba(201,162,39,.35)` }}>
-            <div style={{ fontSize: 11, opacity: .65 }}>RAHASIA KAMU</div>
-            {secret.role === "mrwhite" ? (
-              <>
-                <div style={{ fontSize: 20, fontWeight: 900, color: GOLD, margin: "5px 0" }}>🎭 MR. WHITE</div>
-                <div style={{ fontSize: 12 }}>
-                  Kamu TIDAK dapat kata apa pun! Dengarkan clue orang lain baik-baik, berbaur, dan
-                  jangan sampai ketahuan. Kalau kamu tereliminasi, kamu masih dapat satu kesempatan
-                  menebak kata Civilian untuk menang.
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 24, fontWeight: 900, color: GOLD, margin: "5px 0" }}>{secret.word}</div>
-                <div style={{ fontSize: 12 }}>Role: <b>{secret.role === "undercover" ? "UNDERCOVER" : "CIVILIAN"}</b></div>
-              </>
+        {game && (
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              background: "rgba(201,162,39,.08)",
+              fontSize: 13,
+              marginBottom: 14,
+              textAlign: "center",
+              lineHeight: 1.5,
+            }}
+          >
+            {game.message}
+          </div>
+        )}
+
+        {game && (
+          <div style={gridStyle}>
+            {players.map(
+              (p, seat) =>
+                p && (
+                  <div
+                    key={seat}
+                    style={{
+                      ...seatStyle,
+                      opacity:
+                        isActive &&
+                        !activePlayers.includes(seat)
+                          ? 0.35
+                          : 1,
+                      border:
+                        game.currentSpeaker === seat
+                          ? `1px solid ${GOLD}`
+                          : seat === mySeat
+                          ? "1px solid rgba(201,162,39,.35)"
+                          : seatStyle.border,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {p.name}
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.65,
+                      }}
+                    >
+                      {seat === mySeat
+                        ? "Kamu"
+                        : p.isBot
+                        ? "🤖 Bot"
+                        : "Pemain"}
+
+                      {game.currentSpeaker === seat
+                        ? " • giliran clue"
+                        : ""}
+                    </div>
+
+                    {(game.phase === "clue" ||
+                      game.phase === "voting") &&
+                      allClues[seat] && (
+                        <div
+                          style={{
+                            marginTop: 9,
+                            fontSize: 13,
+                            padding: 8,
+                            borderRadius: 8,
+                            background: "rgba(0,0,0,.2)",
+                          }}
+                        >
+                          “{allClues[seat]}”
+                        </div>
+                      )}
+
+                    {game.phase === "voting" &&
+                      isActive &&
+                      seat !== mySeat && (
+                        <div style={{ marginTop: 9 }}>
+                          <Button
+                            primary={vote === seat}
+                            onClick={() => castVote(seat)}
+                          >
+                            {vote === seat
+                              ? "✓ Dipilih"
+                              : "Vote"}
+                          </Button>
+                        </div>
+                      )}
+
+                    {showEliminatedTag &&
+                      game.eliminated === seat && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            color: GOLD,
+                            fontWeight: 800,
+                          }}
+                        >
+                          ☠️ Tereliminasi
+                        </div>
+                      )}
+                  </div>
+                )
             )}
           </div>
         )}
 
+        {secret &&
+          game &&
+          game.phase !== "finished" &&
+          isActive && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: 14,
+                borderRadius: 12,
+                background: "rgba(201,162,39,.12)",
+                border: "1px solid rgba(201,162,39,.35)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.65,
+                }}
+              >
+                RAHASIA KAMU
+              </div>
+
+              {secret.role === "mrwhite" ? (
+                <>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 900,
+                      color: GOLD,
+                      margin: "5px 0",
+                    }}
+                  >
+                    🎭 MR. WHITE
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Kamu TIDAK dapat kata apa pun! Dengarkan clue
+                    orang lain baik-baik, berbaur, dan jangan sampai
+                    ketahuan. Kalau kamu tereliminasi, kamu masih
+                    dapat satu kesempatan menebak kata Civilian.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 900,
+                      color: GOLD,
+                      margin: "5px 0",
+                    }}
+                  >
+                    {secret.word}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 12,
+                    }}
+                  >
+                    Role:{" "}
+                    <b>
+                      {secret.role === "undercover"
+                        ? "UNDERCOVER"
+                        : "CIVILIAN"}
+                    </b>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
         {myTurnToClue && (
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 12, marginBottom: 6 }}>Kasih clue yang membantu teman menebak kata, tapi jangan terlalu jelas.</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input value={clue} onChange={(e) => setClue(e.target.value)} maxLength={80} placeholder="Contoh: biasanya ada di rumah" style={{ ...inputStyle, marginBottom: 0 }} />
-              <Button primary onClick={submitClue} disabled={!clue.trim()}>Kirim</Button>
+            <div
+              style={{
+                fontSize: 12,
+                marginBottom: 6,
+              }}
+            >
+              Kasih clue yang membantu teman menebak kata,
+              tapi jangan terlalu jelas.
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                value={clue}
+                onChange={(e) => setClue(e.target.value)}
+                maxLength={80}
+                placeholder="Contoh: biasanya ada di rumah"
+                style={{
+                  ...inputStyle,
+                  marginBottom: 0,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              />
+
+              <Button
+                primary
+                onClick={submitClue}
+                disabled={!clue.trim()}
+              >
+                Kirim
+              </Button>
             </div>
           </div>
         )}
 
         {game?.phase === "voting" && isActive && (
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 12, opacity: .8, marginBottom: 9 }}>Pilih pemain yang menurutmu Undercover/Mr. White, atau gunakan Skip Vote kalau belum yakin.</div>
-            <Button primary={vote === "skip"} onClick={() => castVote("skip")}>{vote === "skip" ? "✓ Skip Dipilih" : "⏭️ Skip Vote"}</Button>
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.8,
+                marginBottom: 9,
+              }}
+            >
+              Pilih pemain yang menurutmu Undercover/Mr. White,
+              atau gunakan Skip Vote kalau belum yakin.
+            </div>
+
+            <Button
+              primary={vote === "skip"}
+              onClick={() => castVote("skip")}
+            >
+              {vote === "skip"
+                ? "✓ Skip Dipilih"
+                : "⏭️ Skip Vote"}
+            </Button>
           </div>
         )}
 
@@ -688,57 +1126,264 @@ export function UndercoverGame() {
           <div style={{ marginTop: 14 }}>
             {mySeat === game.eliminated ? (
               <>
-                <div style={{ fontSize: 13, marginBottom: 8 }}>
-                  Kamu Mr. White dan baru saja tereliminasi! Ini kesempatan terakhirmu — tebak kata Civilian:
+                <div
+                  style={{
+                    fontSize: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  Kamu Mr. White dan baru saja tereliminasi!
+                  Ini kesempatan terakhirmu — tebak kata Civilian:
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <input
                     value={guess}
                     onChange={(e) => setGuess(e.target.value)}
                     placeholder="Tebak kata civilian..."
-                    style={{ ...inputStyle, marginBottom: 0 }}
+                    style={{
+                      ...inputStyle,
+                      marginBottom: 0,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
                   />
-                  <Button primary onClick={() => submitMrWhiteGuess(guess)} disabled={!guess.trim()}>Tebak</Button>
+
+                  <Button
+                    primary
+                    onClick={() => submitMrWhiteGuess(guess)}
+                    disabled={!guess.trim()}
+                  >
+                    Tebak
+                  </Button>
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 13, opacity: .8 }}>Menunggu Mr. White menebak kata civilian...</div>
+              <div
+                style={{
+                  fontSize: 13,
+                  opacity: 0.8,
+                  textAlign: "center",
+                }}
+              >
+                Menunggu Mr. White menebak kata civilian...
+              </div>
             )}
           </div>
         )}
 
-        {game?.phase === "result" && amHost && <div style={{ marginTop: 14 }}><Button primary onClick={finishResult}>Lanjutkan</Button></div>}
+        {game?.phase === "result" && amHost && (
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Button
+              primary
+              onClick={finishResult}
+            >
+              Lanjutkan
+            </Button>
+          </div>
+        )}
+
         {game?.phase === "finished" && (
-          <div style={{ fontSize: 18, fontWeight: 900, color: GOLD }}>
-            {game.winner === "civilian" ? "🎉 CIVILIAN MENANG" : game.winner === "mrwhite" ? "🎭 MR. WHITE MENANG" : "🕵️ UNDERCOVER MENANG"}
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 900,
+              color: GOLD,
+              textAlign: "center",
+              marginTop: 8,
+            }}
+          >
+            {game.winner === "civilian"
+              ? "🎉 CIVILIAN MENANG"
+              : game.winner === "mrwhite"
+              ? "🎭 MR. WHITE MENANG"
+              : "🕵️ UNDERCOVER MENANG"}
           </div>
         )}
-        {game?.phase === "finished" && game.winner && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 7 }}>🔎 Pembukaan role</div>
-            <div style={gridStyle}>
-              {Object.entries(game.reveal || {}).map(([seat, info]) => (
-                <div key={seat} style={seatStyle}>
-                  <div style={{ fontWeight: 800 }}>{players[Number(seat)]?.name || `Pemain ${Number(seat) + 1}`}</div>
-                  <div style={{ fontSize: 11, color: info.role === "undercover" || info.role === "mrwhite" ? GOLD : "#bdb7aa", marginTop: 4 }}>
-                    {info.role === "undercover" ? "🕵️ UNDERCOVER" : info.role === "mrwhite" ? "🎭 MR. WHITE" : "👤 CIVILIAN"}
-                  </div>
-                  <div style={{ fontSize: 12, marginTop: 3 }}>
-                    Kata: <b>{info.role === "mrwhite" ? "Tidak dapat kata" : info.word}</b>
-                  </div>
-                </div>
-              ))}
+
+        {game?.phase === "finished" &&
+          game.winner && (
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  marginBottom: 7,
+                }}
+              >
+                🔎 Pembukaan role
+              </div>
+
+              <div style={gridStyle}>
+                {Object.entries(game.reveal || {}).map(
+                  ([seat, info]) => (
+                    <div
+                      key={seat}
+                      style={seatStyle}
+                    >
+                      <div
+                        style={{
+                          fontWeight: 800,
+                        }}
+                      >
+                        {players[Number(seat)]?.name ||
+                          `Pemain ${Number(seat) + 1}`}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color:
+                            info.role === "undercover" ||
+                            info.role === "mrwhite"
+                              ? GOLD
+                              : "#bdb7aa",
+                          marginTop: 4,
+                        }}
+                      >
+                        {info.role === "undercover"
+                          ? "🕵️ UNDERCOVER"
+                          : info.role === "mrwhite"
+                          ? "🎭 MR. WHITE"
+                          : "👤 CIVILIAN"}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 12,
+                          marginTop: 3,
+                        }}
+                      >
+                        Kata:{" "}
+                        <b>
+                          {info.role === "mrwhite"
+                            ? "Tidak dapat kata"
+                            : info.word}
+                        </b>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
+          )}
+
+        {game?.phase === "result" && (
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 12,
+              opacity: 0.7,
+            }}
+          >
+            Host klik <b>Lanjutkan</b> untuk mengecek eliminasi
+            dan meneruskan ronde atau mengakhiri game.
           </div>
         )}
-        {game?.phase === "result" && <div style={{ marginTop: 12, fontSize: 12, opacity: .7 }}>Host klik <b>Lanjutkan</b> untuk mengecek eliminasi dan meneruskan ronde atau mengakhiri game.</div>}
-        {error && <div style={errorStyle}>{error}</div>}
+
+        {error && (
+          <div style={errorStyle}>
+            {error}
+          </div>
+        )}
+
       </Panel>
 
-      {!game && amHost && <Button primary onClick={startGame} disabled={occupied.length < 3}>Mulai Undercover</Button>}
-      {game?.phase === "finished" && amHost && <Button primary onClick={startGame}>Main Lagi</Button>}
-      <div style={{ textAlign: "center", fontSize: 10, opacity: .45 }}>MVP • role rahasia disimpan terpisah dari state game • bot dikendalikan host</div>
+      {game?.phase === "finished" && amHost && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 12,
+          }}
+        >
+          <Button
+            primary
+            onClick={startGame}
+          >
+            Main Lagi
+          </Button>
+        </div>
+      )}
+
+      <div
+        style={{
+          textAlign: "center",
+          fontSize: 10,
+          opacity: 0.45,
+          marginTop: 12,
+          paddingBottom: 4,
+        }}
+      >
+        MVP • role rahasia disimpan terpisah dari state game • bot
+        dikendalikan host
+      </div>
+
     </Shell>
+  );
+}
+
+function EntryShell({ children }) {
+  function goHome() {
+    const url = new URL(window.location.href);
+    url.search = "";
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
+
+  return (
+    <div
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        background: BG,
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        boxSizing: "border-box",
+        color: CREAM,
+      }}
+    >
+      <div
+        style={{
+          background: PANEL,
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 380,
+          width: "100%",
+          color: CREAM,
+          border: "1px solid rgba(255,255,255,.06)",
+          boxSizing: "border-box",
+        }}
+      >
+        {children}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 14,
+          }}
+        >
+          <Button onClick={goHome}>
+            ← Kembali ke Game Hub
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -749,24 +1394,104 @@ function Shell({ children, roomId }) {
     window.history.pushState({}, "", url);
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
+
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", background: BG, minHeight: "100vh", padding: 16, color: CREAM }}>
-      <div style={{ width: "100%", maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-          <button onClick={goHome} style={{ background: "transparent", color: CREAM, border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11 }}>← Game Hub</button>
-          <div style={{ textAlign: "center", flex: 1 }}>
-            <div style={{ fontFamily: "Georgia, serif", color: GOLD, fontSize: 22, fontWeight: 800 }}>🕵️ Undercover</div>
-            {roomId && <div style={{ fontSize: 11, opacity: .55, marginTop: 3 }}>Room {roomId}</div>}
+    <div
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        background: BG,
+        minHeight: "100vh",
+        padding: 14,
+        color: CREAM,
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 850,
+          margin: "0 auto",
+        }}
+      >
+
+        {/* HEADER — pola sama seperti Ular Tangga */}
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: 12,
+          }}
+        >
+          <div
+            style={{
+              color: GOLD,
+              fontFamily: "Georgia, serif",
+              fontSize: 22,
+              fontWeight: 700,
+            }}
+          >
+            🕵️ Undercover
           </div>
-          <div style={{ width: 76 }} />
+
+          {roomId && (
+            <div
+              style={{
+                fontSize: 11,
+                opacity: 0.65,
+                marginTop: 4,
+              }}
+            >
+              Room {roomId}
+            </div>
+          )}
         </div>
+
         {children}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 12,
+            paddingBottom: 4,
+          }}
+        >
+          <Button onClick={goHome}>
+            ← Kembali ke Game Hub
+          </Button>
+        </div>
+
       </div>
     </div>
   );
 }
 
-const inputStyle = { width: "100%", padding: "10px 11px", borderRadius: 9, border: `1px solid ${GOLD}`, background: "#f7f1e5", color: "#1a1a1a", marginBottom: 12, boxSizing: "border-box" };
-const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 };
-const seatStyle = { background: "rgba(0,0,0,.22)", borderRadius: 11, padding: 12, border: "1px solid rgba(255,255,255,.08)" };
-const errorStyle = { color: "#E08080", fontSize: 12, marginTop: 10 };
+const inputStyle = {
+  width: "100%",
+  padding: "10px 11px",
+  borderRadius: 9,
+  border: `1px solid ${GOLD}`,
+  background: "#f7f1e5",
+  color: "#1a1a1a",
+  marginBottom: 12,
+  boxSizing: "border-box",
+};
+
+const gridStyle = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 8,
+};
+
+const seatStyle = {
+  background: "rgba(0,0,0,.22)",
+  borderRadius: 11,
+  padding: 12,
+  border: "1px solid rgba(255,255,255,.08)",
+};
+
+const errorStyle = {
+  color: "#E08080",
+  fontSize: 12,
+  marginTop: 10,
+};
