@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "./firebase";
 import { ref, onValue, runTransaction, set } from "firebase/database";
 import { UndercoverGame } from "./Undercover.jsx";
+import { UlarTangga } from "./UlarTangga.jsx";
 import {
   SUITS,
   rankLabel,
@@ -795,11 +796,33 @@ function HomeHub() {
             <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Undercover</div>
             <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Cari pemain yang mendapat kata berbeda.</div>
           </button>
-          <div style={{ ...cardStyle, opacity: .45, cursor: "default" }}>
-            <div style={{ fontSize: 32 }}>🐍</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Ular Tangga</div>
-            <div style={{ fontSize: 12, marginTop: 5 }}>Segera hadir.</div>
-          </div>
+          <button
+  style={cardStyle}
+  onClick={() => navigate("snakes")}
+>
+  <div style={{ fontSize: 32 }}>🐍</div>
+
+  <div
+    style={{
+      fontSize: 18,
+      fontWeight: 700,
+      marginTop: 8,
+    }}
+  >
+    Ular Tangga
+  </div>
+
+  <div
+    style={{
+      fontSize: 12,
+      opacity: .7,
+      marginTop: 5,
+    }}
+  >
+    Game papan multiplayer dengan dadu,
+    ular, dan tangga.
+  </div>
+</button>
           <div style={{ ...cardStyle, opacity: .45, cursor: "default" }}>
             <div style={{ fontSize: 32 }}>♟️</div>
             <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Chess</div>
@@ -836,7 +859,10 @@ function GameRouter() {
   const params = new URLSearchParams(window.location.search);
   const game = params.get("game");
   const room = params.get("room");
+
   if (game === "undercover") return <UndercoverGame />;
+  if (game === "snakes") return <UlarTangga />;
   if (game === "big-two" || room) return <BigTwoGame />;
+
   return <HomeHub />;
 }

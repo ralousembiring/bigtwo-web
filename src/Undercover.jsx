@@ -312,7 +312,7 @@ export function UndercoverGame() {
         round: nextRound,
         currentSpeaker: active[0],
         clues: {},
-        votes: {},
+        
         eliminated: null,
         message: skipCount === maxPlayerVotes && maxPlayerVotes > 0
           ? `Skip Vote seri dengan suara terbanyak (${skipCount}-${maxPlayerVotes}). Tidak ada yang tereliminasi. Ronde ${nextRound} dimulai.`
