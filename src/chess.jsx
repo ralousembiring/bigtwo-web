@@ -565,7 +565,7 @@ export function Chess() {
       );
 
       setMessage(
-        "Lu meninggalkan kursi."
+        "Meninggalkan kursi."
       );
     } catch (error) {
       console.error(
@@ -800,7 +800,7 @@ export function Chess() {
       gameState.turn !== myColor
     ) {
       setMessage(
-        "Bukan giliran lu."
+        "Bukan giliranmu."
       );
       return;
     }
@@ -912,7 +912,7 @@ export function Chess() {
       gameState.turn !== myColor
     ) {
       setMessage(
-        "Bukan giliran lu."
+        "Bukan giliranmu."
       );
       return;
     }
@@ -1685,6 +1685,9 @@ export function Chess() {
               }}
             >
               ♔ PUTIH
+              {myColor ===
+                "white" &&
+                "•"}
             </button>
           </div>
 
@@ -1742,7 +1745,7 @@ export function Chess() {
               ♜ HITAM
               {myColor ===
                 "black" &&
-                " • LU"}
+                "•"}
             </button>
           </div>
         </div>
@@ -1822,7 +1825,7 @@ export function Chess() {
                         .white
                         .id ===
                       playerId
-                      ? "Lu"
+                      ? "Kamu"
                       : "Terisi"
                     : "Kosong"}
                 </div>
@@ -1895,7 +1898,7 @@ export function Chess() {
                         .black
                         .id ===
                       playerId
-                      ? "Lu"
+                      ? "Kamu"
                       : "Terisi"
                     : "Kosong"}
                 </div>
@@ -2207,9 +2210,9 @@ export function Chess() {
                 {myColor
                   ? myColor ===
                     gameState.turn
-                    ? "Giliran lu."
-                    : "Bukan giliran lu."
-                  : "Lu belum memilih kursi."}
+                    ? "Giliran kamu."
+                    : "Bukan giliran kamu."
+                  : "Kamu belum memilih kursi."}
               </div>
             </>
           )}
