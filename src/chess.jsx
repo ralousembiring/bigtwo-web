@@ -1999,198 +1999,148 @@ export function Chess() {
                 "0 8px 25px rgba(0,0,0,0.35)",
             }}
           >
-            {gameState.board.map(
-              (row, rowIndex) =>
-                row.map(
-                  (
-                    piece,
-                    colIndex
-                  ) => {
-                    const isDark =
-                      (rowIndex +
-                        colIndex) %
-                        2 ===
-                      1;
+           {Array.from({ length: 8 }, (_, displayRow) =>
+  Array.from({ length: 8 }, (_, displayCol) => {
+    const boardRow =
+      myColor === "black"
+        ? 7 - displayRow
+        : displayRow;
 
-                    const isSelected =
-                      selected?.row ===
-                        rowIndex &&
-                      selected?.col ===
-                        colIndex;
+    const boardCol =
+      myColor === "black"
+        ? 7 - displayCol
+        : displayCol;
 
-                    const isValidMove =
-                      validMoves.some(
-                        (move) =>
-                          move.row ===
-                            rowIndex &&
-                          move.col ===
-                            colIndex
-                      );
+    const piece =
+      gameState.board[boardRow][boardCol];
 
-                    const selectedPiece =
-                      selected
-                        ? gameState
-                            .board[
-                            selected
-                              .row
-                          ]?.[
-                            selected
-                              .col
-                          ]
-                        : null;
+    const isDark =
+      (displayRow + displayCol) % 2 === 1;
 
-                    const hasEnemyPiece =
-                      Boolean(
-                        piece &&
-                          selectedPiece &&
-                          piece.color !==
-                            selectedPiece.color
-                      );
+    const isSelected =
+      selected?.row === boardRow &&
+      selected?.col === boardCol;
 
-                    const isCheckedKing =
-                      checkedKing &&
-                      checkedKing.row ===
-                        rowIndex &&
-                      checkedKing.col ===
-                        colIndex;
+    const isValidMove =
+      validMoves.some(
+        (move) =>
+          move.row === boardRow &&
+          move.col === boardCol
+      );
 
-                    return (
-                      <button
-                        key={`${rowIndex}-${colIndex}`}
-                        type="button"
-                        onClick={() =>
-                          handleSquareClick(
-                            rowIndex,
-                            colIndex
-                          )
-                        }
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          minWidth: 0,
-                          minHeight: 0,
-                          border: "none",
-                          borderRadius: 0,
-                          padding: 0,
-                          margin: 0,
+    const hasEnemyPiece =
+      piece &&
+      selected &&
+      piece.color !==
+        gameState.board[selected.row][selected.col]?.color;
 
-                          background:
-                            isCheckedKing
-                              ? "#b33a3a"
-                              : isSelected
-                              ? GOLD
-                              : isDark
-                              ? "#8B6F47"
-                              : "#F0D9B5",
+    const isCheckedKing =
+      checkedKing &&
+      checkedKing.row === boardRow &&
+      checkedKing.col === boardCol;
 
-                          display: "flex",
-                          alignItems:
-                            "center",
-                          justifyContent:
-                            "center",
+    return (
+      <button
+        key={`${boardRow}-${boardCol}`}
+        type="button"
+        onClick={() =>
+          handleSquareClick(boardRow, boardCol)
+        }
+        style={{
+          width: "100%",
+          height: "100%",
+          minWidth: 0,
+          minHeight: 0,
+          border: "none",
+          borderRadius: 0,
+          padding: 0,
+          margin: 0,
 
-                          cursor:
-                            status.gameOver ||
-                            pendingPromotion ||
-                            gameState.turn !==
-                              myColor
-                              ? "default"
-                              : "pointer",
+          background:
+            isCheckedKing
+              ? "#b33a3a"
+              : isSelected
+              ? GOLD
+              : isDark
+              ? "#8B6F47"
+              : "#F0D9B5",
 
-                          userSelect:
-                            "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
 
-                          WebkitTapHighlightColor:
-                            "transparent",
+          cursor:
+            status.gameOver ||
+            pendingPromotion
+              ? "default"
+              : "pointer",
 
-                          boxSizing:
-                            "border-box",
+          userSelect: "none",
+          WebkitTapHighlightColor: "transparent",
+          boxSizing: "border-box",
+          position: "relative",
+        }}
+      >
+        {/* PIECE */}
 
-                          position:
-                            "relative",
-                        }}
-                      >
-                        {/* PIECE */}
+        {piece && (
+          <span
+            style={{
+              display: "block",
+              fontSize:
+                "clamp(30px, 7vw, 58px)",
+              lineHeight: 1,
+              transform: "translateY(-1px)",
 
-                        {piece && (
-                          <span
-                            style={{
-                              display:
-                                "block",
+              color:
+                piece.color === "white"
+                  ? "#ffffff"
+                  : "#111111",
 
-                              fontSize:
-                                "clamp(30px, 7vw, 58px)",
+              textShadow:
+                piece.color === "white"
+                  ? "0 1px 2px rgba(0,0,0,0.8)"
+                  : "0 1px 1px rgba(255,255,255,0.8)",
 
-                              lineHeight: 1,
+              pointerEvents: "none",
+              position: "relative",
+              zIndex: 2,
+            }}
+          >
+            {getPieceSymbol(piece)}
+          </span>
+        )}
 
-                              transform:
-                                "translateY(-1px)",
+        {/* MOVE DOT */}
 
-                              color:
-                                piece.color ===
-                                "white"
-                                  ? "#ffffff"
-                                  : "#111111",
+        {isValidMove && (
+          <span
+            style={{
+              position: "absolute",
 
-                              textShadow:
-                                piece.color ===
-                                "white"
-                                  ? "0 1px 2px rgba(0,0,0,0.8)"
-                                  : "0 1px 1px rgba(255,255,255,0.8)",
+              width: hasEnemyPiece
+                ? "78%"
+                : "24%",
 
-                              pointerEvents:
-                                "none",
+              height: hasEnemyPiece
+                ? "78%"
+                : "24%",
 
-                              position:
-                                "relative",
+              borderRadius: "50%",
 
-                              zIndex: 2,
-                            }}
-                          >
-                            {getPieceSymbol(
-                              piece
-                            )}
-                          </span>
-                        )}
+              background: hasEnemyPiece
+                ? "rgba(190,40,40,0.35)"
+                : "rgba(30,30,30,0.35)",
 
-                        {/* MOVE DOT */}
-
-                        {isValidMove && (
-                          <span
-                            style={{
-                              position:
-                                "absolute",
-
-                              width:
-                                hasEnemyPiece
-                                  ? "78%"
-                                  : "24%",
-
-                              height:
-                                hasEnemyPiece
-                                  ? "78%"
-                                  : "24%",
-
-                              borderRadius:
-                                "50%",
-
-                              background:
-                                hasEnemyPiece
-                                  ? "rgba(190,40,40,0.35)"
-                                  : "rgba(30,30,30,0.35)",
-
-                              pointerEvents:
-                                "none",
-
-                              zIndex: 1,
-                            }}
-                          />
-                        )}
-                      </button>
-                    );
-                  }
-                )
-            )}
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          />
+        )}
+      </button>
+    );
+  })
+)}
           </div>
         </div>
 
