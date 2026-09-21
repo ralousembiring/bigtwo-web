@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
+
 import { db } from "./firebase";
+
 import { ref, onValue, runTransaction, set } from "firebase/database";
 
 const SNAKES = {
@@ -101,8 +103,13 @@ function PlayerToken({ seat }) {
   return (
     <div
       style={{
-        width: 25,
-        height: 25,
+        width: "clamp(16px, 5vw, 25px)",
+        height: "clamp(16px, 5vw, 25px)",
+        minWidth: 16,
+        minHeight: 16,
+        maxWidth: 25,
+        maxHeight: 25,
+        flexShrink: 0,
         borderRadius: "50%",
         background: COLORS[seat],
         border: "2px solid rgba(255,255,255,0.85)",
@@ -111,8 +118,9 @@ function PlayerToken({ seat }) {
         alignItems: "center",
         justifyContent: "center",
         color: "#1a1a1a",
-        fontSize: 10,
+        fontSize: "clamp(7px, 2.2vw, 10px)",
         fontWeight: 800,
+        boxSizing: "border-box",
       }}
     >
       {seat + 1}
@@ -126,7 +134,8 @@ function Button({ children, onClick, primary, disabled, small }) {
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       style={{
-        padding: small ? "6px 11px" : "9px 16px",
+        padding: small ? "7px 11px" : "10px 16px",
+        minHeight: small ? 34 : 42,
         borderRadius: 10,
         border: primary
           ? "none"
@@ -142,6 +151,8 @@ function Button({ children, onClick, primary, disabled, small }) {
         fontSize: small ? 11 : 13,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
+        boxSizing: "border-box",
+        maxWidth: "100%",
       }}
     >
       {children}
@@ -152,12 +163,8 @@ function Button({ children, onClick, primary, disabled, small }) {
 export function UlarTangga() {
   const params = new URLSearchParams(window.location.search);
 
-  const [roomId, setRoomId] = useState(
-    params.get("room") || ""
-  );
-  const [roomInput, setRoomInput] = useState(
-    params.get("room") || ""
-  );
+  const [roomId, setRoomId] = useState(params.get("room") || "");
+  const [roomInput, setRoomInput] = useState(params.get("room") || "");
   const [joined, setJoined] = useState(false);
 
   const [players, setPlayers] = useState([
@@ -237,6 +244,7 @@ export function UlarTangga() {
     url.searchParams.set("room", clean);
 
     window.history.pushState({}, "", url);
+
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
@@ -255,6 +263,7 @@ export function UlarTangga() {
       seatRef,
       (current) => {
         if (current) return;
+
         return {
           name: nameDraft.trim(),
         };
@@ -570,29 +579,32 @@ export function UlarTangga() {
         style={{
           fontFamily: "system-ui, sans-serif",
           background: "#1a1310",
-          minHeight: "100vh",
+          minHeight: "100dvh",
+          width: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 16,
+          padding: "16px",
+          boxSizing: "border-box",
+          overflowX: "hidden",
         }}
       >
         <div
           style={{
-            background:
-              "rgba(255,255,255,0.06)",
+            background: "rgba(255,255,255,0.06)",
             borderRadius: 16,
-            padding: 24,
+            padding: "clamp(20px, 5vw, 24px)",
             maxWidth: 380,
             width: "100%",
             color: cream,
+            boxSizing: "border-box",
           }}
         >
           <h1
             style={{
               fontFamily: "Georgia, serif",
               color: gold,
-              fontSize: 22,
+              fontSize: "clamp(20px, 6vw, 22px)",
               marginTop: 0,
             }}
           >
@@ -617,27 +629,34 @@ export function UlarTangga() {
             }
             placeholder="Kode room (kosongkan untuk baru)"
             style={{
-              padding: "9px 10px",
+              padding: "12px 10px",
               borderRadius: 8,
-              border:
-                "1px solid #C9A227",
+              border: "1px solid #C9A227",
               width: "100%",
               marginBottom: 12,
               boxSizing: "border-box",
               background: "#f5efe0",
+              minHeight: 44,
+              fontSize: 14,
             }}
           />
 
-          <Button
-            primary
-            onClick={() =>
-              enterRoom(roomInput)
-            }
+          <div
+            style={{
+              width: "100%",
+            }}
           >
-            {roomInput.trim()
-              ? "Gabung Room"
-              : "Buat Room Baru"}
-          </Button>
+            <Button
+              primary
+              onClick={() =>
+                enterRoom(roomInput)
+              }
+            >
+              {roomInput.trim()
+                ? "Gabung Room"
+                : "Buat Room Baru"}
+            </Button>
+          </div>
 
           <div
             style={{
@@ -658,6 +677,7 @@ export function UlarTangga() {
   }
 
   const inLobby = mySeat === null;
+
   const gameReady =
     game && game.phase !== "lobby";
 
@@ -666,9 +686,12 @@ export function UlarTangga() {
       style={{
         fontFamily: "system-ui, sans-serif",
         background: "#1a1310",
-        minHeight: "100vh",
-        padding: 14,
+        minHeight: "100dvh",
+        width: "100%",
+        padding: "clamp(8px, 2vw, 14px)",
         color: cream,
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <div
@@ -676,6 +699,7 @@ export function UlarTangga() {
           width: "100%",
           maxWidth: 850,
           margin: "0 auto",
+          boxSizing: "border-box",
         }}
       >
         <div
@@ -688,7 +712,7 @@ export function UlarTangga() {
             style={{
               color: gold,
               fontFamily: "Georgia, serif",
-              fontSize: 22,
+              fontSize: "clamp(20px, 5vw, 22px)",
               fontWeight: 700,
             }}
           >
@@ -712,8 +736,9 @@ export function UlarTangga() {
               background:
                 "rgba(255,255,255,0.06)",
               borderRadius: 14,
-              padding: 16,
+              padding: "clamp(12px, 4vw, 16px)",
               marginBottom: 12,
+              boxSizing: "border-box",
             }}
           >
             <div
@@ -732,14 +757,14 @@ export function UlarTangga() {
               }
               placeholder="Nama kamu"
               style={{
-                padding: "9px 10px",
+                padding: "11px 10px",
                 borderRadius: 8,
-                border:
-                  "1px solid #C9A227",
+                border: "1px solid #C9A227",
                 width: 220,
                 maxWidth: "100%",
                 marginBottom: 12,
                 boxSizing: "border-box",
+                minHeight: 44,
               }}
             />
 
@@ -747,7 +772,7 @@ export function UlarTangga() {
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(auto-fit, minmax(150px, 1fr))",
+                  "repeat(auto-fit, minmax(140px, 1fr))",
                 gap: 8,
               }}
             >
@@ -761,6 +786,8 @@ export function UlarTangga() {
                       borderRadius: 10,
                       padding: 12,
                       textAlign: "center",
+                      boxSizing: "border-box",
+                      minWidth: 0,
                     }}
                   >
                     <div
@@ -778,6 +805,8 @@ export function UlarTangga() {
                         fontWeight: 700,
                         margin:
                           "5px 0 9px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     >
                       {players[seat]?.name ||
@@ -820,8 +849,9 @@ export function UlarTangga() {
               background:
                 "rgba(255,255,255,0.06)",
               borderRadius: 14,
-              padding: 16,
+              padding: "clamp(12px, 4vw, 16px)",
               textAlign: "center",
+              boxSizing: "border-box",
             }}
           >
             <div style={{ marginBottom: 12 }}>
@@ -839,7 +869,7 @@ export function UlarTangga() {
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(auto-fit, minmax(140px, 1fr))",
+                  "repeat(auto-fit, minmax(130px, 1fr))",
                 gap: 8,
                 marginBottom: 14,
               }}
@@ -853,6 +883,8 @@ export function UlarTangga() {
                         "rgba(0,0,0,0.25)",
                       borderRadius: 10,
                       padding: 10,
+                      minWidth: 0,
+                      boxSizing: "border-box",
                     }}
                   >
                     <div
@@ -869,6 +901,8 @@ export function UlarTangga() {
                         fontSize: 13,
                         fontWeight: 700,
                         marginTop: 4,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     >
                       {players[seat]?.name ||
@@ -926,29 +960,40 @@ export function UlarTangga() {
               style={{
                 background:
                   "linear-gradient(180deg, #6B4226, #3E2519)",
-                padding: 9,
-                borderRadius: 18,
+                padding:
+                  "clamp(4px, 1.5vw, 9px)",
+                borderRadius:
+                  "clamp(10px, 3vw, 18px)",
                 boxShadow:
                   "0 10px 30px rgba(0,0,0,0.5)",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <div
                 style={{
-                  background: `radial-gradient(ellipse at center, ${navy} 0%, ${navyDark} 100%)`,
+                  background:
+                    `radial-gradient(ellipse at center, ${navy} 0%, ${navyDark} 100%)`,
                   border:
                     "2px solid #C9A227",
-                  borderRadius: 14,
-                  padding: 10,
+                  borderRadius:
+                    "clamp(8px, 2.5vw, 14px)",
+                  padding:
+                    "clamp(4px, 1.5vw, 10px)",
+                  width: "100%",
+                  boxSizing: "border-box",
                 }}
               >
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns:
-                      "repeat(10, 1fr)",
-                    gap: 3,
+                      "repeat(10, minmax(0, 1fr))",
+                    gap:
+                      "clamp(1px, 0.7vw, 3px)",
                     width: "100%",
                     aspectRatio: "1 / 1",
+                    boxSizing: "border-box",
                   }}
                 >
                   {Array.from(
@@ -958,6 +1003,7 @@ export function UlarTangga() {
                         Math.floor(
                           index / 10
                         );
+
                       const col =
                         index % 10;
 
@@ -974,8 +1020,7 @@ export function UlarTangga() {
                               pos,
                               seat
                             ) =>
-                              pos ===
-                              number
+                              pos === number
                                 ? seat
                                 : null
                           )
@@ -996,18 +1041,23 @@ export function UlarTangga() {
                             borderRadius: 4,
                             minWidth: 0,
                             minHeight: 0,
+                            overflow: "hidden",
                             display: "flex",
                             flexDirection:
                               "column",
                             justifyContent:
                               "space-between",
-                            padding: 3,
+                            padding:
+                              "clamp(1px, 0.7vw, 3px)",
+                            boxSizing:
+                              "border-box",
                           }}
                         >
                           <div
                             style={{
                               fontSize:
-                                "clamp(7px, 1.4vw, 11px)",
+                                "clamp(6px, 2.2vw, 11px)",
+                              lineHeight: 1,
                               fontWeight: 700,
                               opacity: 0.85,
                             }}
@@ -1030,7 +1080,10 @@ export function UlarTangga() {
                                 transform:
                                   "translate(-50%, -50%)",
                                 fontSize:
-                                  "clamp(13px, 3vw, 24px)",
+                                  "clamp(10px, 5vw, 24px)",
+                                lineHeight: 1,
+                                pointerEvents:
+                                  "none",
                               }}
                             >
                               {SNAKES[
@@ -1050,6 +1103,10 @@ export function UlarTangga() {
                               gap: 2,
                               justifyContent:
                                 "flex-end",
+                              alignItems:
+                                "flex-end",
+                              maxWidth:
+                                "100%",
                             }}
                           >
                             {tokens.map(
@@ -1080,17 +1137,21 @@ export function UlarTangga() {
                 background:
                   "rgba(255,255,255,0.06)",
                 borderRadius: 14,
-                padding: 14,
+                padding:
+                  "clamp(10px, 3vw, 14px)",
                 marginTop: 10,
+                boxSizing: "border-box",
               }}
             >
               <div
                 style={{
                   textAlign: "center",
-                  fontSize: 13,
+                  fontSize:
+                    "clamp(12px, 3.5vw, 13px)",
                   color: gold,
                   fontWeight: 700,
                   marginBottom: 6,
+                  lineHeight: 1.4,
                 }}
               >
                 {game.message}
@@ -1119,17 +1180,22 @@ export function UlarTangga() {
               <div
                 style={{
                   display: "flex",
-                  justifyContent:
-                    "center",
+                  justifyContent: "center",
                   alignItems: "center",
-                  gap: 16,
+                  gap: 12,
                   flexWrap: "wrap",
                 }}
               >
                 <div
                   style={{
-                    width: 58,
-                    height: 58,
+                    width:
+                      "clamp(50px, 16vw, 58px)",
+                    height:
+                      "clamp(50px, 16vw, 58px)",
+                    minWidth: 50,
+                    minHeight: 50,
+                    maxWidth: 58,
+                    maxHeight: 58,
                     borderRadius: 12,
                     background:
                       "#F5EFE0",
@@ -1139,10 +1205,12 @@ export function UlarTangga() {
                       "center",
                     justifyContent:
                       "center",
-                    fontSize: 28,
+                    fontSize:
+                      "clamp(24px, 8vw, 28px)",
                     fontWeight: 800,
                     boxShadow:
                       "0 4px 10px rgba(0,0,0,0.35)",
+                    boxSizing: "border-box",
                   }}
                 >
                   {game.lastRoll || "?"}
@@ -1168,6 +1236,8 @@ export function UlarTangga() {
                       style={{
                         fontSize: 12,
                         opacity: 0.65,
+                        textAlign:
+                          "center",
                       }}
                     >
                       Tunggu giliranmu...
@@ -1191,7 +1261,7 @@ export function UlarTangga() {
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(auto-fit, minmax(130px, 1fr))",
+                  "repeat(2, minmax(0, 1fr))",
                 gap: 7,
                 marginTop: 10,
               }}
@@ -1207,11 +1277,13 @@ export function UlarTangga() {
                       padding: 8,
                       border:
                         game.currentPlayer ===
-                        seat &&
+                          seat &&
                         game.phase ===
                           "playing"
                           ? `1px solid ${COLORS[seat]}`
                           : "1px solid transparent",
+                      minWidth: 0,
+                      boxSizing: "border-box",
                     }}
                   >
                     <div
@@ -1220,17 +1292,29 @@ export function UlarTangga() {
                         alignItems:
                           "center",
                         gap: 6,
+                        minWidth: 0,
                       }}
                     >
                       <PlayerToken
                         seat={seat}
                       />
 
-                      <div>
+                      <div
+                        style={{
+                          minWidth: 0,
+                          overflow: "hidden",
+                        }}
+                      >
                         <div
                           style={{
                             fontSize: 11,
                             fontWeight: 700,
+                            overflow:
+                              "hidden",
+                            textOverflow:
+                              "ellipsis",
+                            whiteSpace:
+                              "nowrap",
                           }}
                         >
                           {displayName(
@@ -1257,8 +1341,7 @@ export function UlarTangga() {
               )}
             </div>
 
-            {game.log?.length >
-              0 && (
+            {game.log?.length > 0 && (
               <div
                 style={{
                   marginTop: 10,
@@ -1268,6 +1351,9 @@ export function UlarTangga() {
                   padding: 10,
                   fontSize: 10,
                   opacity: 0.65,
+                  boxSizing: "border-box",
+                  overflowWrap:
+                    "anywhere",
                 }}
               >
                 {game.log
@@ -1278,8 +1364,7 @@ export function UlarTangga() {
                       <div
                         key={i}
                         style={{
-                          marginBottom:
-                            3,
+                          marginBottom: 3,
                         }}
                       >
                         {item}
@@ -1292,9 +1377,9 @@ export function UlarTangga() {
             <div
               style={{
                 display: "flex",
-                justifyContent:
-                  "center",
+                justifyContent: "center",
                 marginTop: 12,
+                paddingBottom: 4,
               }}
             >
               <Button

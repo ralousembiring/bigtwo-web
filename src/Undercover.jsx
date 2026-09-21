@@ -4,8 +4,11 @@ import { get, onValue, ref, runTransaction, set } from "firebase/database";
 
 const GOLD = "#C9A227";
 const CREAM = "#F5EFE0";
-const BG = "#1a1310";
-const PANEL = "rgba(255,255,255,0.06)";
+const BG = "#17110E";
+const PANEL = "#24201C";
+const PANEL_SOFT = "#2A2520";
+const BORDER = "rgba(201,162,39,0.45)";
+const SHADOW = "0 18px 45px rgba(0,0,0,0.28)";
 const MAX_PLAYERS = 8;
 const BOT_NAMES = ["Andi", "Budi", "Citra", "Dimas", "Eko", "Fajar", "Gita"];
 
@@ -96,23 +99,56 @@ function Button({ children, onClick, primary, disabled, danger }) {
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       style={{
-        padding: "10px 15px",
+        minHeight: 42,
+        padding: "10px 18px",
         borderRadius: 10,
-        border: primary ? "none" : "1px solid rgba(255,255,255,.25)",
-        background: disabled ? "#4a4238" : danger ? "#7a2a2a" : primary ? GOLD : "rgba(255,255,255,.08)",
-        color: primary && !disabled ? "#1a1a1a" : CREAM,
-        fontWeight: 700,
+        border: primary
+          ? "1px solid rgba(201,162,39,0.8)"
+          : "1px solid rgba(255,255,255,0.16)",
+        background: disabled
+          ? "#4A443D"
+          : danger
+          ? "#702D2D"
+          : primary
+          ? `linear-gradient(180deg, #D6AF2F 0%, ${GOLD} 100%)`
+          : "rgba(255,255,255,0.07)",
+        color: primary && !disabled ? "#18130F" : CREAM,
+        fontWeight: 800,
+        fontSize: 13,
+        letterSpacing: 0.1,
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? .6 : 1,
+        opacity: disabled ? 0.55 : 1,
+        boxShadow: primary && !disabled
+          ? "0 5px 14px rgba(201,162,39,0.18)"
+          : "none",
+        transition: "all .15s ease",
       }}
-    >{children}</button>
+    >
+      {children}
+    </button>
   );
 }
 
 function Panel({ children }) {
-  return <div style={{ background: PANEL, borderRadius: 16, padding: 16, border: "1px solid rgba(255,255,255,.06)" }}>{children}</div>;
+  return (
+    <div
+  style={{
+    width: "100%",
+    maxWidth: "505px",
+    background: "#26211d",
+    border: "1px solid rgba(201, 162, 39, 0.45)",
+    borderRadius: "18px",
+    padding: "32px 28px",
+    boxSizing: "border-box",
+    textAlign: "center",
+    color: CREAM,
+    boxShadow: "0 8px 30px rgba(0, 0, 0, 0.18)",
+  }}
+>
+      {children}
+    </div>
+  );
 }
-
 export function UndercoverGame() {
   const params = new URLSearchParams(window.location.search);
   const initialRoom = params.get("room") || "";
@@ -523,49 +559,66 @@ export function UndercoverGame() {
   }
 
    if (!joined) {
-    return (
-      <EntryShell>
-        <h1
-          style={{
-            fontFamily: "Georgia, serif",
-            color: GOLD,
-            marginTop: 0,
-            marginBottom: 8,
-            fontSize: 26,
-            textAlign: "center",
-          }}
-        >
-          🕵️ Undercover
-        </h1>
+  return (
+    <EntryShell>
+      <h1
+        style={{
+          fontFamily: "Georgia, serif",
+          color: GOLD,
+          marginTop: 0,
+          marginBottom: 8,
+          fontSize: 26,
+          textAlign: "center",
+        }}
+      >
+        🕵️ Undercover
+      </h1>
 
-        <p
-          style={{
-            fontSize: 13,
-            opacity: 0.8,
-            marginTop: 0,
-            marginBottom: 16,
-            textAlign: "center",
-          }}
-        >
-          Buat room baru atau masukkan kode room temanmu.
-        </p>
+      <p
+        style={{
+          fontSize: 13,
+          opacity: 0.8,
+          marginTop: 0,
+          marginBottom: 16,
+          textAlign: "center",
+          lineHeight: 1.5,
+        }}
+      >
+        Buat room baru atau masukkan kode room temanmu.
+      </p>
 
-        <input
-          value={roomInput}
-          onChange={(e) => setRoomInput(e.target.value)}
-          placeholder="Kode room"
-          style={inputStyle}
-        />
+      <input
+        value={roomInput}
+        onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+        placeholder="KODE ROOM"
+        style={{
+          ...inputStyle,
+          marginBottom: 12,
+          textTransform: "uppercase",
+        }}
+      />
 
-        <Button
-          primary
-          onClick={() => enterRoom(roomInput)}
-        >
-          {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
-        </Button>
-      </EntryShell>
-    );
-  }
+      <button
+  type="button"
+  onClick={() => enterRoom(roomInput)}
+  style={{
+    width: "100%",
+    padding: "12px 16px",
+    borderRadius: 10,
+    border: "1px solid #C9A227",
+    background: "#C9A227",
+    color: "#1a1310",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+    boxSizing: "border-box",
+  }}
+>
+  {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
+</button>
+    </EntryShell>
+  );
+}
 
   if (!game) {
     return (
@@ -1346,27 +1399,28 @@ function EntryShell({ children }) {
   return (
     <div
       style={{
-        fontFamily: "system-ui, sans-serif",
-        background: BG,
-        minHeight: "100vh",
+        minHeight: "100dvh",
+        background: "#1a1310",
+        color: CREAM,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: "20px",
         boxSizing: "border-box",
-        color: CREAM,
+        fontFamily: "system-ui, sans-serif",
       }}
     >
       <div
         style={{
-          background: PANEL,
-          borderRadius: 16,
-          padding: 24,
-          maxWidth: 380,
           width: "100%",
-          color: CREAM,
-          border: "1px solid rgba(255,255,255,.06)",
+          maxWidth: "505px",
+          background: "#26211d",
+          border: "1px solid rgba(201, 162, 39, 0.45)",
+          borderRadius: "18px",
+          padding: "32px 28px",
           boxSizing: "border-box",
+          textAlign: "center",
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.18)",
         }}
       >
         {children}
@@ -1375,12 +1429,24 @@ function EntryShell({ children }) {
           style={{
             display: "flex",
             justifyContent: "center",
-            marginTop: 14,
+            marginTop: "16px",
           }}
         >
-          <Button onClick={goHome}>
+          <button
+            type="button"
+            onClick={goHome}
+            style={{
+              background: "transparent",
+              color: CREAM,
+              border: `1px solid ${GOLD}`,
+              borderRadius: "10px",
+              padding: "11px 18px",
+              fontSize: "14px",
+              cursor: "pointer",
+            }}
+          >
             ← Kembali ke Game Hub
-          </Button>
+          </button>
         </div>
       </div>
     </div>
@@ -1401,7 +1467,7 @@ function Shell({ children, roomId }) {
         fontFamily: "system-ui, sans-serif",
         background: BG,
         minHeight: "100vh",
-        padding: 14,
+        padding: "18px 14px 24px",
         color: CREAM,
         boxSizing: "border-box",
       }}
@@ -1409,24 +1475,23 @@ function Shell({ children, roomId }) {
       <div
         style={{
           width: "100%",
-          maxWidth: 850,
+          maxWidth: 900,
           margin: "0 auto",
         }}
       >
-
-        {/* HEADER — pola sama seperti Ular Tangga */}
         <div
           style={{
             textAlign: "center",
-            marginBottom: 12,
+            marginBottom: 18,
           }}
         >
           <div
             style={{
               color: GOLD,
               fontFamily: "Georgia, serif",
-              fontSize: 22,
+              fontSize: 27,
               fontWeight: 700,
+              letterSpacing: 0.2,
             }}
           >
             🕵️ Undercover
@@ -1435,9 +1500,15 @@ function Shell({ children, roomId }) {
           {roomId && (
             <div
               style={{
+                display: "inline-block",
+                marginTop: 7,
+                padding: "5px 10px",
+                borderRadius: 999,
+                background: "rgba(201,162,39,0.09)",
+                border: "1px solid rgba(201,162,39,0.2)",
+                color: CREAM,
                 fontSize: 11,
-                opacity: 0.65,
-                marginTop: 4,
+                opacity: 0.85,
               }}
             >
               Room {roomId}
@@ -1451,15 +1522,14 @@ function Shell({ children, roomId }) {
           style={{
             display: "flex",
             justifyContent: "center",
-            marginTop: 12,
-            paddingBottom: 4,
+            marginTop: 16,
+            paddingTop: 4,
           }}
         >
           <Button onClick={goHome}>
             ← Kembali ke Game Hub
           </Button>
         </div>
-
       </div>
     </div>
   );
@@ -1467,31 +1537,40 @@ function Shell({ children, roomId }) {
 
 const inputStyle = {
   width: "100%",
-  padding: "10px 11px",
-  borderRadius: 9,
+  minHeight: 44,
+  padding: "10px 13px",
+  borderRadius: 18,
   border: `1px solid ${GOLD}`,
-  background: "#f7f1e5",
-  color: "#1a1a1a",
+  boxShadow: "0 10px 30px rgba(0,0,0,.28)",
+  background: "#F7F1E5",
+  color: "#1A1612",
+  fontSize: 14,
+  outline: "none",
   marginBottom: 12,
   boxSizing: "border-box",
 };
-
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(150px, 1fr))",
-  gap: 8,
+  gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))",
+  gap: 10,
 };
 
 const seatStyle = {
-  background: "rgba(0,0,0,.22)",
-  borderRadius: 11,
-  padding: 12,
-  border: "1px solid rgba(255,255,255,.08)",
+  background: PANEL_SOFT,
+  borderRadius: 13,
+  padding: 14,
+  border: "1px solid rgba(255,255,255,0.08)",
+  boxSizing: "border-box",
+  minHeight: 92,
 };
 
 const errorStyle = {
-  color: "#E08080",
+  color: "#F08A8A",
   fontSize: 12,
-  marginTop: 10,
+  marginTop: 12,
+  padding: "9px 11px",
+  borderRadius: 9,
+  background: "rgba(180,50,50,0.10)",
+  border: "1px solid rgba(220,100,100,0.16)",
+  textAlign: "center",
 };

@@ -683,84 +683,140 @@ export function BigTwoGame() {
   const wood = "linear-gradient(180deg, #6B4226, #3E2519)";
 
   // ---------- room join screen ----------
-  if (!joined) {
-    return (
+  // ---------- room join screen ----------
+if (!joined) {
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "#1a1310",
+        color: cream,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+        boxSizing: "border-box",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
       <div
         style={{
-          fontFamily: "system-ui, sans-serif",
-          background: "#1a1310",
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
+          width: "100%",
+          maxWidth: "505px",
+          background: "#26211d",
+          border: "1px solid rgba(201, 162, 39, 0.45)",
+          borderRadius: "18px",
+          padding: "32px 28px",
+          boxSizing: "border-box",
+          textAlign: "center",
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.18)",
         }}
       >
+        {/* JUDUL */}
         <div
           style={{
-            background: "rgba(255,255,255,0.06)",
-            borderRadius: 16,
-            padding: 24,
-            maxWidth: 380,
-            width: "100%",
-            color: cream,
+            color: gold,
+            fontFamily: "Georgia, serif",
+            fontSize: "38px",
+            fontWeight: 700,
+            marginBottom: "12px",
           }}
         >
-          <h1
-            style={{
-              fontFamily: "Georgia, serif",
-              color: gold,
-              fontSize: 22,
-              marginTop: 0,
-            }}
-          >
-           🃏Big Two
-          </h1>
-
-          <p style={{ fontSize: 13, opacity: 0.85 }}>
-            Masukkan kode room untuk gabung dengan temanmu, atau kosongkan untuk
-            membuat room baru.
-          </p>
-
-          <input
-            value={roomInput}
-            onChange={(e) => setRoomInput(e.target.value)}
-            placeholder="Kode room (kosongkan untuk buat baru)"
-            style={{
-              padding: "8px 10px",
-              borderRadius: 8,
-              border: "1px solid #C9A227",
-              width: "100%",
-              marginBottom: 12,
-              boxSizing: "border-box",
-            }}
-          />
-
-          <Button primary onClick={() => enterRoom(roomInput)}>
-  {roomInput.trim() ? "Gabung Room" : "Buat Room Baru"}
-</Button>
-
-<div
-  style={{
-    display: "flex",
-    justifyContent: "center",
-    marginTop: 14,
-  }}
->
-  <Button
-    onClick={() => {
-      window.history.pushState({}, "", window.location.pathname);
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    }}
-  >
-    ← Kembali ke Game Hub
-  </Button>
-</div>
+          ♠ Big Two
         </div>
-      </div>
-    );
-  }
 
+        {/* DESKRIPSI */}
+        <div
+          style={{
+            color: cream,
+            opacity: 0.8,
+            fontSize: "15px",
+            lineHeight: 1.5,
+            marginBottom: "24px",
+          }}
+        >
+          Masukkan kode room untuk bermain dengan teman,
+          atau buat room baru.
+        </div>
+
+        {/* INPUT KODE ROOM */}
+        <input
+          value={roomInput}
+          onChange={(e) =>
+            setRoomInput(e.target.value.toUpperCase())
+          }
+          placeholder="KODE ROOM"
+          maxLength={8}
+          style={{
+            width: "100%",
+            height: "56px",
+            boxSizing: "border-box",
+            padding: "0 16px",
+            borderRadius: "10px",
+            border: `1px solid ${gold}`,
+            background: "#1a1310",
+            color: cream,
+            outline: "none",
+            textAlign: "center",
+            fontSize: "17px",
+            letterSpacing: "2px",
+            marginBottom: "14px",
+          }}
+        />
+
+        {/* TOMBOL ROOM */}
+        <button
+          type="button"
+          onClick={() => enterRoom(roomInput)}
+          style={{
+            width: "100%",
+            height: "52px",
+            border: "none",
+            borderRadius: "10px",
+            background: gold,
+            color: "#17100c",
+            fontWeight: 700,
+            fontSize: "16px",
+            cursor: "pointer",
+            boxSizing: "border-box",
+          }}
+        >
+          {roomInput.trim()
+            ? "Gabung Room"
+            : "Buat Room Baru"}
+        </button>
+
+        {/* KEMBALI */}
+        <button
+          type="button"
+          onClick={() => {
+            window.history.pushState(
+              {},
+              "",
+              window.location.pathname
+            );
+
+            window.dispatchEvent(
+              new PopStateEvent("popstate")
+            );
+          }}
+          style={{
+            marginTop: "16px",
+            background: "transparent",
+            color: cream,
+            border: `1px solid ${gold}`,
+            borderRadius: "10px",
+            padding: "11px 18px",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          ← Kembali ke Game Hub
+        </button>
+      </div>
+    </div>
+  );
+}
   const inLobby = mySeat === null;
   const gameReady = game && game.phase !== "lobby";
   const seatByRel = (rel) =>
