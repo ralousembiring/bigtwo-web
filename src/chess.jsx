@@ -524,8 +524,8 @@ export function Chess() {
 
       setMessage(
         color === "white"
-          ? "Lu duduk sebagai PUTIH."
-          : "Lu duduk sebagai HITAM."
+          ? "Kamu duduk sebagai PUTIH."
+          : "Kamu duduk sebagai HITAM."
       );
     } catch (error) {
       console.error(
@@ -565,7 +565,7 @@ export function Chess() {
       );
 
       setMessage(
-        "Lu meninggalkan kursi."
+        "Kamu meninggalkan kursi."
       );
     } catch (error) {
       console.error(
@@ -800,7 +800,7 @@ export function Chess() {
       gameState.turn !== myColor
     ) {
       setMessage(
-        "Bukan giliran lu."
+        "Bukan giliran kamu."
       );
       return;
     }
@@ -912,7 +912,7 @@ export function Chess() {
       gameState.turn !== myColor
     ) {
       setMessage(
-        "Bukan giliran lu."
+        "Bukan giliran kamu."
       );
       return;
     }
@@ -1742,7 +1742,7 @@ export function Chess() {
               ♜ HITAM
               {myColor ===
                 "black" &&
-                " • LU"}
+                "•"}
             </button>
           </div>
         </div>
@@ -1822,7 +1822,7 @@ export function Chess() {
                         .white
                         .id ===
                       playerId
-                      ? "Lu"
+                      ? "Kamu"
                       : "Terisi"
                     : "Kosong"}
                 </div>
@@ -1895,7 +1895,7 @@ export function Chess() {
                         .black
                         .id ===
                       playerId
-                      ? "Lu"
+                      ? "Kamu"
                       : "Terisi"
                     : "Kosong"}
                 </div>
@@ -2207,9 +2207,9 @@ export function Chess() {
                 {myColor
                   ? myColor ===
                     gameState.turn
-                    ? "Giliran lu."
-                    : "Bukan giliran lu."
-                  : "Lu belum memilih kursi."}
+                    ? "Giliran kamu."
+                    : "Bukan giliran kamu."
+                  : "Kamu belum memilih kursi."}
               </div>
             </>
           )}
