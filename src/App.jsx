@@ -3,6 +3,7 @@ import { db } from "./firebase";
 import { ref, onValue, runTransaction, set } from "firebase/database";
 import { UndercoverGame } from "./Undercover.jsx";
 import { UlarTangga } from "./UlarTangga.jsx";
+import { Chess } from "./chess.jsx";
 import {
   SUITS,
   rankLabel,
@@ -1367,11 +1368,32 @@ function HomeHub() {
     Game papan (Ular Tangga) multipalyer.
   </div>
 </button>
-          <div style={{ ...cardStyle, opacity: .45, cursor: "default" }}>
-            <div style={{ fontSize: 32 }}>♟️</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Chess</div>
-            <div style={{ fontSize: 12, marginTop: 5 }}>Segera hadir.</div>
-          </div>
+          <button
+  style={cardStyle}
+  onClick={() => navigate("chess")}
+>
+  <div style={{ fontSize: 32 }}>♟️</div>
+
+  <div
+    style={{
+      fontSize: 18,
+      fontWeight: 700,
+      marginTop: 8,
+    }}
+  >
+    Chess
+  </div>
+
+  <div
+    style={{
+      fontSize: 12,
+      opacity: 0.7,
+      marginTop: 5,
+    }}
+  >
+    Game catur multiplayer 2 pemain.
+  </div>
+</button>
         </div>
                 <div style={{ textAlign: "center", marginTop: 20 }}>
           <SupportButton />
@@ -1401,12 +1423,19 @@ export default function App() {
 }
 
 function GameRouter() {
+
   const params = new URLSearchParams(window.location.search);
+
   const game = params.get("game");
+
   const room = params.get("room");
 
   if (game === "undercover") return <UndercoverGame />;
+
   if (game === "snakes") return <UlarTangga />;
+
+  if (game === "chess") return <Chess />;
+
   if (game === "big-two" || room) return <BigTwoGame />;
 
   return <HomeHub />;
