@@ -524,8 +524,8 @@ export function Chess() {
 
       setMessage(
         color === "white"
-          ? "Lu duduk sebagai PUTIH."
-          : "Lu duduk sebagai HITAM."
+          ? "PUTIH."
+          : "HITAM."
       );
     } catch (error) {
       console.error(
