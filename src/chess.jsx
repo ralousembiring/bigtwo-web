@@ -1996,7 +1996,12 @@ export function Chess() {
               overflow: "hidden",
               boxSizing: "border-box",
               boxShadow:
+              
                 "0 8px 25px rgba(0,0,0,0.35)",
+                transform:
+  myColor === "black"
+    ? "rotate(180deg)"
+    : "none",
             }}
           >
            {Array.from({ length: 8 }, (_, displayRow) =>
@@ -2079,6 +2084,10 @@ export function Chess() {
           WebkitTapHighlightColor: "transparent",
           boxSizing: "border-box",
           position: "relative",
+          transform:
+  myColor === "black"
+    ? "rotate(180deg)"
+    : "none",
         }}
       >
         {/* PIECE */}
