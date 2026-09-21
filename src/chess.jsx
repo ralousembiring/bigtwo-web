@@ -524,8 +524,8 @@ export function Chess() {
 
       setMessage(
         color === "white"
-          ? "PUTIH."
-          : "HITAM."
+          ? "Lu duduk sebagai PUTIH."
+          : "Lu duduk sebagai HITAM."
       );
     } catch (error) {
       console.error(
@@ -565,7 +565,7 @@ export function Chess() {
       );
 
       setMessage(
-        "Meninggalkan kursi."
+        "Lu meninggalkan kursi."
       );
     } catch (error) {
       console.error(
@@ -800,7 +800,7 @@ export function Chess() {
       gameState.turn !== myColor
     ) {
       setMessage(
-        "Bukan giliranmu."
+        "Bukan giliran lu."
       );
       return;
     }
@@ -912,7 +912,7 @@ export function Chess() {
       gameState.turn !== myColor
     ) {
       setMessage(
-        "Bukan giliranmu."
+        "Bukan giliran lu."
       );
       return;
     }
@@ -1685,9 +1685,6 @@ export function Chess() {
               }}
             >
               ♔ PUTIH
-              {myColor ===
-                "white" &&
-                "•"}
             </button>
           </div>
 
@@ -1745,7 +1742,7 @@ export function Chess() {
               ♜ HITAM
               {myColor ===
                 "black" &&
-                "•"}
+                " • LU"}
             </button>
           </div>
         </div>
@@ -1825,7 +1822,7 @@ export function Chess() {
                         .white
                         .id ===
                       playerId
-                      ? "Kamu"
+                      ? "Lu"
                       : "Terisi"
                     : "Kosong"}
                 </div>
@@ -1880,10 +1877,7 @@ export function Chess() {
                       "5px",
                   }}
                 >
-                  ♜ PUTIH
-                   {myColor ===
-                "WHITE" &&
-                "•"}
+                  ♜ HITAM
                 </div>
 
                 <div
@@ -1901,7 +1895,7 @@ export function Chess() {
                         .black
                         .id ===
                       playerId
-                      ? "Kamu"
+                      ? "Lu"
                       : "Terisi"
                     : "Kosong"}
                 </div>
@@ -2213,9 +2207,9 @@ export function Chess() {
                 {myColor
                   ? myColor ===
                     gameState.turn
-                    ? "Giliran kamu."
-                    : "Bukan giliran kamu."
-                  : "Kamu belum memilih kursi."}
+                    ? "Giliran lu."
+                    : "Bukan giliran lu."
+                  : "Lu belum memilih kursi."}
               </div>
             </>
           )}
