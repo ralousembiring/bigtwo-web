@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   get,
@@ -52,71 +56,66 @@ function generateRoomCode() {
 
 function getPlayerId() {
   try {
-    const key = "rgamehub_chess_player_id";
+    const key =
+      "rgamehub_chess_player_id";
+
     let id = sessionStorage.getItem(key);
 
     if (!id) {
       id =
         "player_" +
-        Math.random().toString(36).substring(2) +
+        Math.random()
+          .toString(36)
+          .substring(2) +
         Date.now().toString(36);
 
-      sessionStorage.setItem(key, id);
+      sessionStorage.setItem(
+        key,
+        id
+      );
     }
 
     return id;
   } catch {
     return (
       "player_" +
-      Math.random().toString(36).substring(2) +
+      Math.random()
+        .toString(36)
+        .substring(2) +
       Date.now().toString(36)
     );
   }
 }
 
-/*
- * Firebase bisa mengembalikan array sebagai object.
- * Fungsi ini memastikan board kembali menjadi
- * array 8 x 8 sebelum diberikan ke chessLogic.
- */
 function normalizeBoard(board) {
-  if (!board) {
-    return null;
-  }
-
-  const getKeys = (value) =>
-    Object.keys(value || {}).sort(
-      (a, b) => Number(a) - Number(b)
-    );
+  if (!board) return null;
 
   const result = [];
 
-  for (let rowIndex = 0; rowIndex < 8; rowIndex++) {
-    const sourceRow = Array.isArray(board)
-      ? board[rowIndex]
-      : board[String(rowIndex)];
+  for (let row = 0; row < 8; row++) {
+    const sourceRow =
+      Array.isArray(board)
+        ? board[row]
+        : board[String(row)];
 
-    if (Array.isArray(sourceRow)) {
-      result.push(
-        Array.from(
-          { length: 8 },
-          (_, colIndex) =>
-            sourceRow[colIndex] ?? null
-        )
-      );
+    const newRow = [];
 
-      continue;
+    for (let col = 0; col < 8; col++) {
+      let value = null;
+
+      if (Array.isArray(sourceRow)) {
+        value =
+          sourceRow[col] ?? null;
+      } else if (sourceRow) {
+        value =
+          sourceRow[String(col)] ??
+          null;
+      }
+
+      newRow.push(value);
     }
 
-    const row = [];
-
-    for (let colIndex = 0; colIndex < 8; colIndex++) {
-      row.push(
-        sourceRow?.[String(colIndex)] ?? null
-      );
-    }
-
-    result.push(row);
+    result.push(newRow);
   }
 
   if (
@@ -134,15 +133,13 @@ function normalizeBoard(board) {
 }
 
 function normalizeGameState(state) {
-  if (!state) {
-    return null;
-  }
+  if (!state) return null;
 
-  const board = normalizeBoard(state.board);
+  const board = normalizeBoard(
+    state.board
+  );
 
-  if (!board) {
-    return null;
-  }
+  if (!board) return null;
 
   return {
     ...state,
@@ -155,23 +152,32 @@ export function Chess() {
     getPlayerId()
   );
 
-  const [roomId, setRoomId] = useState(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+  const [roomId, setRoomId] =
+    useState(() => {
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
 
-    return params.get("room") || null;
-  });
+      return (
+        params.get("room") || null
+      );
+    });
 
-  const [roomInput, setRoomInput] = useState(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+  const [roomInput, setRoomInput] =
+    useState(() => {
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
 
-    return params.get("room") || "";
-  });
+      return (
+        params.get("room") || ""
+      );
+    });
 
-  const [roomData, setRoomData] = useState(null);
+  const [roomData, setRoomData] =
+    useState(null);
 
   const [gameState, setGameState] =
     useState(null);
@@ -179,8 +185,10 @@ export function Chess() {
   const [selected, setSelected] =
     useState(null);
 
-  const [pendingPromotion, setPendingPromotion] =
-    useState(null);
+  const [
+    pendingPromotion,
+    setPendingPromotion,
+  ] = useState(null);
 
   const [loading, setLoading] =
     useState(false);
@@ -188,11 +196,9 @@ export function Chess() {
   const [message, setMessage] =
     useState("");
 
-  /*
-   * =====================================================
-   * FIREBASE ROOM LISTENER
-   * =====================================================
-   */
+  // =========================================
+  // FIREBASE ROOM LISTENER
+  // =========================================
 
   useEffect(() => {
     if (!roomId) {
@@ -225,12 +231,9 @@ export function Chess() {
 
         setRoomData(data);
 
-        /*
-         * Jangan menjalankan game state
-         * sebelum game benar-benar dimulai.
-         */
         if (
-          data?.game?.started &&
+          data?.game?.started ===
+            true &&
           data?.game?.state
         ) {
           const normalized =
@@ -264,15 +267,14 @@ export function Chess() {
     return () => unsubscribe();
   }, [roomId]);
 
-  /*
-   * =====================================================
-   * URL ROOM
-   * =====================================================
-   */
+  // =========================================
+  // URL
+  // =========================================
 
   function openRoomInUrl(code) {
     const newUrl =
-      `${window.location.pathname}?game=chess&room=${code}`;
+      `${window.location.pathname}` +
+      `?game=chess&room=${code}`;
 
     window.history.replaceState(
       {},
@@ -281,45 +283,39 @@ export function Chess() {
     );
   }
 
-  /*
-   * =====================================================
-   * CREATE ROOM
-   * =====================================================
-   */
+  // =========================================
+  // CREATE ROOM
+  // =========================================
 
   async function createRoom() {
     setLoading(true);
     setMessage("");
 
     try {
-      let code = generateRoomCode();
+      let code =
+        generateRoomCode();
 
       let roomRef = ref(
         db,
         `chessRooms/${code}`
       );
 
-      let snapshot = await get(roomRef);
+      let snapshot =
+        await get(roomRef);
 
       if (snapshot.exists()) {
-        code = generateRoomCode();
+        code =
+          generateRoomCode();
 
         roomRef = ref(
           db,
           `chessRooms/${code}`
         );
 
-        snapshot = await get(roomRef);
+        snapshot =
+          await get(roomRef);
       }
 
-      /*
-       * PENTING:
-       * Jangan simpan createInitialState()
-       * saat membuat room.
-       *
-       * State baru dibuat ketika host
-       * menekan START GAME.
-       */
       await set(roomRef, {
         host: playerId,
 
@@ -358,15 +354,15 @@ export function Chess() {
     setLoading(false);
   }
 
-  /*
-   * =====================================================
-   * JOIN ROOM
-   * =====================================================
-   */
+  // =========================================
+  // JOIN ROOM
+  // =========================================
 
   async function joinRoom() {
     const code =
-      roomInput.trim().toUpperCase();
+      roomInput
+        .trim()
+        .toUpperCase();
 
     if (!code) {
       setMessage(
@@ -384,7 +380,8 @@ export function Chess() {
         `chessRooms/${code}`
       );
 
-      const snapshot = await get(roomRef);
+      const snapshot =
+        await get(roomRef);
 
       if (!snapshot.exists()) {
         setMessage(
@@ -413,11 +410,9 @@ export function Chess() {
     setLoading(false);
   }
 
-  /*
-   * =====================================================
-   * LEAVE ROOM
-   * =====================================================
-   */
+  // =========================================
+  // LEAVE ROOM
+  // =========================================
 
   function leaveRoom() {
     setRoomId(null);
@@ -434,11 +429,9 @@ export function Chess() {
     );
   }
 
-  /*
-   * =====================================================
-   * PLAYER COLOR
-   * =====================================================
-   */
+  // =========================================
+  // MY COLOR
+  // =========================================
 
   const myColor = useMemo(() => {
     if (!roomData?.players) {
@@ -462,11 +455,9 @@ export function Chess() {
     return null;
   }, [roomData, playerId]);
 
-  /*
-   * =====================================================
-   * TAKE SEAT
-   * =====================================================
-   */
+  // =========================================
+  // TAKE SEAT
+  // =========================================
 
   async function takeSeat(color) {
     if (!roomId || !roomData) {
@@ -501,22 +492,22 @@ export function Chess() {
 
       const updates = {};
 
-      /*
-       * Kalau pemain sudah duduk
-       * di warna lain, kosongkan.
-       */
       if (
-        roomData.players?.white?.id ===
-        playerId
+        roomData.players?.white
+          ?.id === playerId
       ) {
-        updates["players/white"] = null;
+        updates[
+          "players/white"
+        ] = null;
       }
 
       if (
-        roomData.players?.black?.id ===
-        playerId
+        roomData.players?.black
+          ?.id === playerId
       ) {
-        updates["players/black"] = null;
+        updates[
+          "players/black"
+        ] = null;
       }
 
       updates[
@@ -548,11 +539,9 @@ export function Chess() {
     }
   }
 
-  /*
-   * =====================================================
-   * LEAVE SEAT
-   * =====================================================
-   */
+  // =========================================
+  // LEAVE SEAT
+  // =========================================
 
   async function leaveSeat() {
     if (!roomId || !myColor) {
@@ -561,7 +550,7 @@ export function Chess() {
 
     if (roomData?.game?.started) {
       setMessage(
-        "Game sudah dimulai. Kursi tidak bisa ditinggalkan."
+        "Game sudah dimulai."
       );
       return;
     }
@@ -590,11 +579,9 @@ export function Chess() {
     }
   }
 
-  /*
-   * =====================================================
-   * START GAME
-   * =====================================================
-   */
+  // =========================================
+  // START GAME
+  // =========================================
 
   async function startGame() {
     if (!roomId || !roomData) {
@@ -630,10 +617,14 @@ export function Chess() {
         createInitialState();
 
       await update(
-        ref(db, `chessRooms/${roomId}`),
+        ref(
+          db,
+          `chessRooms/${roomId}`
+        ),
         {
           "game/started": true,
-          "game/state": initialState,
+          "game/state":
+            initialState,
         }
       );
 
@@ -654,16 +645,11 @@ export function Chess() {
     setLoading(false);
   }
 
-  /*
-   * =====================================================
-   * STATUS
-   * =====================================================
-   */
+  // =========================================
+  // STATUS
+  // =========================================
 
   const status = useMemo(() => {
-    /*
-     * Lobby = jangan panggil getGameStatus.
-     */
     if (
       !roomData?.game?.started
     ) {
@@ -713,11 +699,9 @@ export function Chess() {
     roomData?.game?.started,
   ]);
 
-  /*
-   * =====================================================
-   * VALID MOVES
-   * =====================================================
-   */
+  // =========================================
+  // VALID MOVES
+  // =========================================
 
   const validMoves = useMemo(() => {
     if (
@@ -728,10 +712,6 @@ export function Chess() {
       return [];
     }
 
-    /*
-     * Jangan izinkan pemain bergerak
-     * kalau bukan gilirannya.
-     */
     if (
       gameState.turn !== myColor
     ) {
@@ -749,11 +729,9 @@ export function Chess() {
     myColor,
   ]);
 
-  /*
-   * =====================================================
-   * STATUS TEXT
-   * =====================================================
-   */
+  // =========================================
+  // STATUS TEXT
+  // =========================================
 
   function getStatusText() {
     if (!roomData?.game?.started) {
@@ -784,8 +762,7 @@ export function Chess() {
     }
 
     if (
-      status.status ===
-      "check"
+      status.status === "check"
     ) {
       const turn =
         gameState.turn ===
@@ -802,11 +779,9 @@ export function Chess() {
       : "Giliran Hitam";
   }
 
-  /*
-   * =====================================================
-   * EXECUTE MOVE
-   * =====================================================
-   */
+  // =========================================
+  // EXECUTE MOVE
+  // =========================================
 
   async function executeMove(
     move,
@@ -840,95 +815,62 @@ export function Chess() {
     setPendingPromotion(null);
 
     try {
-      const roomRef = ref(
+      const gameRef = ref(
         db,
-        `chessRooms/${roomId}`
+        `chessRooms/${roomId}/game/state`
       );
 
       await runTransaction(
-        roomRef,
-        (currentRoom) => {
-          if (!currentRoom) {
-            return;
-          }
-
-          if (
-            currentRoom.game
-              ?.started !== true
-          ) {
-            return;
-          }
-
-          const currentState =
+        gameRef,
+        (currentState) => {
+          const current =
             normalizeGameState(
-              currentRoom.game?.state
+              currentState
             );
 
-          if (!currentState) {
+          if (!current) {
             return;
           }
 
-          /*
-           * Validasi turn di dalam
-           * transaction Firebase.
-           */
           if (
-            currentState.turn !==
+            current.turn !==
             myColor
-          ) {
-            return;
-          }
-
-          const seat =
-            currentRoom.players?.[
-              myColor
-            ];
-
-          if (
-            seat?.id !== playerId
           ) {
             return;
           }
 
           const legalMoves =
             getLegalMoves(
-              currentState,
+              current,
               fromRow,
               fromCol
             );
 
-          const isLegal =
-            legalMoves.some(
-              (item) =>
-                item.row ===
-                  move.row &&
-                item.col ===
-                  move.col &&
+          const legal = legalMoves.some(
+            (item) =>
+              item.row ===
+                move.row &&
+              item.col ===
+                move.col &&
+              Boolean(
+                item.promotion
+              ) ===
                 Boolean(
-                  item.promotion
-                ) ===
-                  Boolean(
-                    move.promotion
-                  )
-            );
+                  move.promotion
+                )
+          );
 
-          if (!isLegal) {
+          if (!legal) {
             return;
           }
 
-          const newState =
-            applyMove(
-              currentState,
-              fromRow,
-              fromCol,
-              move,
-              promotionPiece
-            );
-
-          currentRoom.game.state =
-            newState;
-
-          return currentRoom;
+          return applyMove(
+            current,
+            fromRow,
+            fromCol,
+            move,
+            promotionPiece
+          );
         }
       );
     } catch (error) {
@@ -943,11 +885,9 @@ export function Chess() {
     }
   }
 
-  /*
-   * =====================================================
-   * SQUARE CLICK
-   * =====================================================
-   */
+  // =========================================
+  // CLICK SQUARE
+  // =========================================
 
   function handleSquareClick(
     row,
@@ -968,9 +908,6 @@ export function Chess() {
       return;
     }
 
-    /*
-     * Turn enforcement.
-     */
     if (
       gameState.turn !== myColor
     ) {
@@ -983,21 +920,12 @@ export function Chess() {
     const piece =
       gameState.board[row][col];
 
-    /*
-     * =====================================
-     * BELUM MEMILIH BIDAK
-     * =====================================
-     */
-
+    // BELUM PILIH BIDAK
     if (!selected) {
       if (!piece) {
         return;
       }
 
-      /*
-       * Hanya boleh memilih bidak
-       * milik warna sendiri.
-       */
       if (
         piece.color !== myColor
       ) {
@@ -1023,12 +951,7 @@ export function Chess() {
       return;
     }
 
-    /*
-     * =====================================
-     * KLIK BIDAK SENDIRI
-     * =====================================
-     */
-
+    // KLIK BIDAK SENDIRI
     if (
       piece &&
       piece.color === myColor
@@ -1050,12 +973,7 @@ export function Chess() {
       return;
     }
 
-    /*
-     * =====================================
-     * CARI LANGKAH
-     * =====================================
-     */
-
+    // CARI MOVE
     const move =
       validMoves.find(
         (item) =>
@@ -1067,12 +985,7 @@ export function Chess() {
       return;
     }
 
-    /*
-     * =====================================
-     * PROMOTION
-     * =====================================
-     */
-
+    // PROMOTION
     if (move.promotion) {
       setPendingPromotion({
         move,
@@ -1085,11 +998,9 @@ export function Chess() {
     executeMove(move);
   }
 
-  /*
-   * =====================================================
-   * RESET GAME
-   * =====================================================
-   */
+  // =========================================
+  // RESET
+  // =========================================
 
   async function resetGame() {
     if (!roomId) {
@@ -1107,10 +1018,13 @@ export function Chess() {
 
     try {
       await update(
-        ref(db, `chessRooms/${roomId}`),
+        ref(
+          db,
+          `chessRooms/${roomId}/game`
+        ),
         {
-          "game/started": false,
-          "game/state": null,
+          started: false,
+          state: null,
         }
       );
 
@@ -1122,7 +1036,7 @@ export function Chess() {
       );
     } catch (error) {
       console.error(
-        "Reset game error:",
+        "Reset error:",
         error
       );
 
@@ -1132,11 +1046,9 @@ export function Chess() {
     }
   }
 
-  /*
-   * =====================================================
-   * CHECKED KING
-   * =====================================================
-   */
+  // =========================================
+  // CHECKED KING
+  // =========================================
 
   const checkedKing =
     status.check &&
@@ -1147,18 +1059,15 @@ export function Chess() {
         )
       : null;
 
-  /*
-   * =====================================================
-   * ROOM CREATION / JOIN SCREEN
-   * =====================================================
-   */
+  // =========================================
+  // NO ROOM
+  // =========================================
 
   if (!roomId) {
     return (
       <div
         style={{
           minHeight: "100dvh",
-          width: "100%",
           background: BG,
           color: CREAM,
           display: "flex",
@@ -1167,30 +1076,31 @@ export function Chess() {
           padding: "20px",
           boxSizing: "border-box",
           fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            "system-ui, sans-serif",
         }}
       >
         <div
           style={{
             width: "100%",
-            maxWidth: "440px",
+            maxWidth: "420px",
             background:
-              "rgba(255,255,255,0.05)",
+              "rgba(255,255,255,0.06)",
             border:
-              `1px solid rgba(201,162,39,0.45)`,
+              "1px solid rgba(201,162,39,0.35)",
             borderRadius: "16px",
-            padding: "28px",
+            padding: "24px",
             boxSizing: "border-box",
+            textAlign: "center",
           }}
         >
           <div
             style={{
-              textAlign: "center",
               color: GOLD,
               fontFamily:
                 "Georgia, serif",
-              fontSize: "40px",
+              fontSize: "34px",
               fontWeight: 700,
+              marginBottom: "8px",
             }}
           >
             ♟ Chess
@@ -1198,114 +1108,96 @@ export function Chess() {
 
           <div
             style={{
-              textAlign: "center",
-              marginTop: "8px",
+              fontSize: "14px",
               opacity: 0.75,
+              marginBottom: "20px",
+              lineHeight: 1.5,
             }}
           >
-            Multiplayer
-          </div>
-
-          <button
-            type="button"
-            onClick={createRoom}
-            disabled={loading}
-            style={{
-              width: "100%",
-              marginTop: "28px",
-              minHeight: "48px",
-              border: "none",
-              borderRadius: "9px",
-              background: GOLD,
-              color: "#17100c",
-              fontWeight: 800,
-              fontSize: "15px",
-              cursor: loading
-                ? "default"
-                : "pointer",
-            }}
-          >
-            {loading
-              ? "Membuat Room..."
-              : "Buat Room Baru"}
-          </button>
-
-          <div
-            style={{
-              textAlign: "center",
-              margin:
-                "20px 0 12px",
-              opacity: 0.55,
-            }}
-          >
-            atau
+            Masukkan kode room
+            untuk bermain dengan
+            teman, atau buat room
+            baru.
           </div>
 
           <input
             value={roomInput}
-            onChange={(event) =>
+            onChange={(e) =>
               setRoomInput(
-                event.target.value
+                e.target.value
               )
             }
-            onKeyDown={(event) => {
+            onKeyDown={(e) => {
               if (
-                event.key === "Enter"
+                e.key === "Enter"
               ) {
-                joinRoom();
+                if (
+                  roomInput.trim()
+                ) {
+                  joinRoom();
+                } else {
+                  createRoom();
+                }
               }
             }}
-            placeholder="Masukkan kode room"
-            maxLength={8}
+            placeholder="Kode room"
             style={{
               width: "100%",
-              minHeight: "46px",
-              boxSizing: "border-box",
+              boxSizing:
+                "border-box",
+              padding:
+                "13px 14px",
               borderRadius: "9px",
               border:
-                "1px solid rgba(255,255,255,0.2)",
+                `1px solid ${GOLD}`,
               background:
                 "rgba(0,0,0,0.25)",
               color: CREAM,
-              padding: "0 13px",
-              fontSize: "15px",
               outline: "none",
+              textAlign: "center",
               textTransform:
                 "uppercase",
+              fontSize: "16px",
+              marginBottom: "12px",
             }}
           />
 
           <button
             type="button"
-            onClick={joinRoom}
+            onClick={
+              roomInput.trim()
+                ? joinRoom
+                : createRoom
+            }
             disabled={loading}
             style={{
               width: "100%",
-              marginTop: "10px",
-              minHeight: "46px",
-              border:
-                `1px solid ${GOLD}`,
+              padding:
+                "13px 16px",
+              border: "none",
               borderRadius: "9px",
-              background:
-                "transparent",
-              color: CREAM,
+              background: GOLD,
+              color: "#17100c",
               fontWeight: 700,
               fontSize: "15px",
               cursor: loading
-                ? "default"
+                ? "wait"
                 : "pointer",
             }}
           >
-            Masuk Room
+            {loading
+              ? "Memproses..."
+              : roomInput.trim()
+              ? "Gabung Room"
+              : "Buat Room Baru"}
           </button>
 
           {message && (
             <div
               style={{
-                marginTop: "16px",
-                textAlign: "center",
+                marginTop: "14px",
                 fontSize: "13px",
-                color: CREAM,
+                color: "#ffd98a",
               }}
             >
               {message}
@@ -1319,15 +1211,16 @@ export function Chess() {
                 window.location.pathname;
             }}
             style={{
-              display: "block",
-              margin:
-                "22px auto 0",
+              marginTop: "14px",
               background:
                 "transparent",
-              border: "none",
-              color: GOLD,
+              color: CREAM,
+              border:
+                `1px solid ${GOLD}`,
+              borderRadius: "9px",
+              padding:
+                "10px 15px",
               cursor: "pointer",
-              fontSize: "13px",
             }}
           >
             ← Kembali ke Game Hub
@@ -1337,11 +1230,9 @@ export function Chess() {
     );
   }
 
-  /*
-   * =====================================================
-   * ROOM NOT FOUND / LOADING
-   * =====================================================
-   */
+  // =========================================
+  // ROOM NOT FOUND / LOADING
+  // =========================================
 
   if (
     loading &&
@@ -1377,6 +1268,8 @@ export function Chess() {
           justifyContent: "center",
           padding: "20px",
           boxSizing: "border-box",
+          fontFamily:
+            "system-ui, sans-serif",
         }}
       >
         <div
@@ -1386,22 +1279,24 @@ export function Chess() {
         >
           <div
             style={{
-              fontSize: "18px",
+              color: GOLD,
+              fontSize: "26px",
               fontWeight: 700,
+              marginBottom: "10px",
             }}
           >
-            Room tidak ditemukan.
+            Room tidak ditemukan
           </div>
 
           <button
             type="button"
             onClick={leaveRoom}
             style={{
-              marginTop: "16px",
               background: GOLD,
               border: "none",
               borderRadius: "8px",
-              padding: "11px 17px",
+              padding:
+                "11px 18px",
               fontWeight: 700,
               cursor: "pointer",
             }}
@@ -1413,422 +1308,261 @@ export function Chess() {
     );
   }
 
-  /*
-   * =====================================================
-   * LOBBY
-   * =====================================================
-   */
+  // =========================================
+  // GAME STARTED
+  // =========================================
 
-  if (!roomData.game?.started) {
-    const whitePlayer =
-      roomData.players?.white;
+  const gameStarted =
+    roomData.game?.started ===
+    true;
 
-    const blackPlayer =
-      roomData.players?.black;
+  // =========================================
+  // BOARD
+  // =========================================
+
+  function renderBoard() {
+    if (!gameState) {
+      return null;
+    }
 
     return (
       <div
         style={{
-          minHeight: "100dvh",
-          width: "100%",
-          background: BG,
-          color: CREAM,
-          padding:
-            "clamp(16px, 4vw, 32px) 14px",
+          width: "90vw",
+          maxWidth: "560px",
+          aspectRatio: "1 / 1",
+          margin: "0 auto",
           boxSizing: "border-box",
-          fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          flexShrink: 0,
         }}
       >
         <div
           style={{
             width: "100%",
-            maxWidth: "580px",
-            margin: "0 auto",
+            height: "100%",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(8, 1fr)",
+            gridTemplateRows:
+              "repeat(8, 1fr)",
+            border:
+              `3px solid ${GOLD}`,
+            borderRadius: "4px",
+            overflow: "hidden",
+            boxSizing: "border-box",
+            boxShadow:
+              "0 8px 25px rgba(0,0,0,0.35)",
           }}
         >
-          <div
-            style={{
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                color: GOLD,
-                fontFamily:
-                  "Georgia, serif",
-                fontSize:
-                  "clamp(30px, 7vw, 42px)",
-                fontWeight: 700,
-              }}
-            >
-              ♟ Chess
-            </div>
+          {Array.from(
+            { length: 8 },
+            (_, displayRow) => {
+              const actualRow =
+                myColor === "black"
+                  ? 7 - displayRow
+                  : displayRow;
 
-            <div
-              style={{
-                marginTop: "8px",
-                fontSize: "14px",
-                opacity: 0.7,
-              }}
-            >
-              Lobby Multiplayer
-            </div>
-          </div>
+              return Array.from(
+                { length: 8 },
+                (_, displayCol) => {
+                  const actualCol =
+                    myColor === "black"
+                      ? 7 - displayCol
+                      : displayCol;
 
-          <div
-            style={{
-              marginTop: "24px",
-              padding: "16px",
-              borderRadius: "12px",
-              background:
-                "rgba(255,255,255,0.05)",
-              border:
-                `1px solid rgba(201,162,39,0.4)`,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "12px",
-                opacity: 0.65,
-              }}
-            >
-              KODE ROOM
-            </div>
+                  const piece =
+                    gameState.board[
+                      actualRow
+                    ][actualCol];
 
-            <div
-              style={{
-                marginTop: "5px",
-                color: GOLD,
-                fontSize: "30px",
-                fontWeight: 900,
-                letterSpacing: "5px",
-              }}
-            >
-              {roomId}
-            </div>
+                  const isDark =
+                    (displayRow +
+                      displayCol) %
+                      2 ===
+                    1;
 
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard
-                  ?.writeText(
-                    window.location.href
+                  const isSelected =
+                    selected?.row ===
+                      actualRow &&
+                    selected?.col ===
+                      actualCol;
+
+                  const isValidMove =
+                    validMoves.some(
+                      (move) =>
+                        move.row ===
+                          actualRow &&
+                        move.col ===
+                          actualCol
+                    );
+
+                  const selectedPiece =
+                    selected
+                      ? gameState
+                          .board[
+                          selected.row
+                        ]?.[
+                          selected.col
+                        ]
+                      : null;
+
+                  const hasEnemyPiece =
+                    Boolean(
+                      piece &&
+                        selectedPiece &&
+                        piece.color !==
+                          selectedPiece.color
+                    );
+
+                  const isCheckedKing =
+                    Boolean(
+                      checkedKing &&
+                        checkedKing.row ===
+                          actualRow &&
+                        checkedKing.col ===
+                          actualCol
+                    );
+
+                  return (
+                    <button
+                      key={`${actualRow}-${actualCol}`}
+                      type="button"
+                      onClick={() =>
+                        handleSquareClick(
+                          actualRow,
+                          actualCol
+                        )
+                      }
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        minWidth: 0,
+                        minHeight: 0,
+                        border: "none",
+                        borderRadius: 0,
+                        padding: 0,
+                        margin: 0,
+
+                        background:
+                          isCheckedKing
+                            ? "#b33a3a"
+                            : isSelected
+                            ? GOLD
+                            : isDark
+                            ? "#8B6F47"
+                            : "#F0D9B5",
+
+                        display: "flex",
+                        alignItems:
+                          "center",
+                        justifyContent:
+                          "center",
+
+                        cursor:
+                          status.gameOver ||
+                          pendingPromotion
+                            ? "default"
+                            : "pointer",
+
+                        userSelect:
+                          "none",
+
+                        WebkitTapHighlightColor:
+                          "transparent",
+
+                        boxSizing:
+                          "border-box",
+
+                        position:
+                          "relative",
+                      }}
+                    >
+                      {piece && (
+                        <span
+                          style={{
+                            display:
+                              "block",
+
+                            fontSize:
+                              "clamp(30px, 7vw, 58px)",
+
+                            lineHeight: 1,
+
+                            transform:
+                              "translateY(-1px)",
+
+                            color:
+                              piece.color ===
+                              "white"
+                                ? "#ffffff"
+                                : "#111111",
+
+                            textShadow:
+                              piece.color ===
+                              "white"
+                                ? "0 1px 2px rgba(0,0,0,0.8)"
+                                : "0 1px 1px rgba(255,255,255,0.8)",
+
+                            pointerEvents:
+                              "none",
+
+                            position:
+                              "relative",
+
+                            zIndex: 2,
+                          }}
+                        >
+                          {getPieceSymbol(
+                            piece
+                          )}
+                        </span>
+                      )}
+
+                      {isValidMove && (
+                        <span
+                          style={{
+                            position:
+                              "absolute",
+
+                            width:
+                              hasEnemyPiece
+                                ? "78%"
+                                : "24%",
+
+                            height:
+                              hasEnemyPiece
+                                ? "78%"
+                                : "24%",
+
+                            borderRadius:
+                              "50%",
+
+                            background:
+                              hasEnemyPiece
+                                ? "rgba(190,40,40,0.35)"
+                                : "rgba(30,30,30,0.35)",
+
+                            pointerEvents:
+                              "none",
+
+                            zIndex: 1,
+                          }}
+                        />
+                      )}
+                    </button>
                   );
-
-                setMessage(
-                  "Link room berhasil disalin."
-                );
-              }}
-              style={{
-                marginTop: "10px",
-                background:
-                  "transparent",
-                color: CREAM,
-                border:
-                  `1px solid ${GOLD}`,
-                borderRadius: "7px",
-                padding:
-                  "8px 13px",
-                cursor: "pointer",
-              }}
-            >
-              Salin Link Room
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(2, minmax(0, 1fr))",
-              gap: "12px",
-              marginTop: "16px",
-            }}
-          >
-            {/* WHITE */}
-
-            <div
-              style={{
-                padding: "18px 12px",
-                borderRadius: "12px",
-                background:
-                  "rgba(255,255,255,0.07)",
-                border:
-                  whitePlayer
-                    ? `2px solid ${GOLD}`
-                    : "1px solid rgba(255,255,255,0.15)",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "38px",
-                }}
-              >
-                ♔
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontWeight: 800,
-                }}
-              >
-                PUTIH
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  minHeight: "20px",
-                  fontSize: "12px",
-                  opacity: 0.7,
-                }}
-              >
-                {whitePlayer
-                  ? whitePlayer.id ===
-                    playerId
-                    ? "Lu"
-                    : "Terisi"
-                  : "Kosong"}
-              </div>
-
-              {!whitePlayer ||
-              whitePlayer.id ===
-                playerId ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    whitePlayer
-                      ? leaveSeat()
-                      : takeSeat(
-                          "white"
-                        )
-                  }
-                  style={{
-                    width: "100%",
-                    marginTop: "14px",
-                    minHeight: "40px",
-                    borderRadius: "8px",
-                    border:
-                      `1px solid ${GOLD}`,
-                    background:
-                      whitePlayer
-                        ? "transparent"
-                        : GOLD,
-                    color:
-                      whitePlayer
-                        ? CREAM
-                        : "#17100c",
-                    fontWeight: 800,
-                    cursor:
-                      "pointer",
-                  }}
-                >
-                  {whitePlayer
-                    ? "Keluar Kursi"
-                    : "Pilih PUTIH"}
-                </button>
-              ) : null}
-            </div>
-
-            {/* BLACK */}
-
-            <div
-              style={{
-                padding: "18px 12px",
-                borderRadius: "12px",
-                background:
-                  "rgba(255,255,255,0.07)",
-                border:
-                  blackPlayer
-                    ? `2px solid ${GOLD}`
-                    : "1px solid rgba(255,255,255,0.15)",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "38px",
-                }}
-              >
-                ♚
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontWeight: 800,
-                }}
-              >
-                HITAM
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  minHeight: "20px",
-                  fontSize: "12px",
-                  opacity: 0.7,
-                }}
-              >
-                {blackPlayer
-                  ? blackPlayer.id ===
-                    playerId
-                    ? "Lu"
-                    : "Terisi"
-                  : "Kosong"}
-              </div>
-
-              {!blackPlayer ||
-              blackPlayer.id ===
-                playerId ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    blackPlayer
-                      ? leaveSeat()
-                      : takeSeat(
-                          "black"
-                        )
-                  }
-                  style={{
-                    width: "100%",
-                    marginTop: "14px",
-                    minHeight: "40px",
-                    borderRadius: "8px",
-                    border:
-                      `1px solid ${GOLD}`,
-                    background:
-                      blackPlayer
-                        ? "transparent"
-                        : GOLD,
-                    color:
-                      blackPlayer
-                        ? CREAM
-                        : "#17100c",
-                    fontWeight: 800,
-                    cursor:
-                      "pointer",
-                  }}
-                >
-                  {blackPlayer
-                    ? "Keluar Kursi"
-                    : "Pilih HITAM"}
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: "18px",
-              textAlign: "center",
-              fontSize: "13px",
-              opacity: 0.7,
-            }}
-          >
-            {roomData.host ===
-            playerId
-              ? "Lu adalah host."
-              : "Menunggu host memulai game."}
-          </div>
-
-          {roomData.host ===
-            playerId && (
-            <button
-              type="button"
-              onClick={startGame}
-              disabled={
-                !whitePlayer ||
-                !blackPlayer
-              }
-              style={{
-                width: "100%",
-                marginTop: "14px",
-                minHeight: "48px",
-                border: "none",
-                borderRadius: "9px",
-                background:
-                  whitePlayer &&
-                  blackPlayer
-                    ? GOLD
-                    : "rgba(255,255,255,0.15)",
-                color:
-                  whitePlayer &&
-                  blackPlayer
-                    ? "#17100c"
-                    : "rgba(255,255,255,0.45)",
-                fontWeight: 900,
-                cursor:
-                  whitePlayer &&
-                  blackPlayer
-                    ? "pointer"
-                    : "default",
-              }}
-            >
-              START GAME
-            </button>
+                }
+              );
+            }
           )}
-
-          {message && (
-            <div
-              style={{
-                marginTop: "14px",
-                textAlign: "center",
-                fontSize: "13px",
-              }}
-            >
-              {message}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={leaveRoom}
-            style={{
-              display: "block",
-              margin:
-                "20px auto 0",
-              background:
-                "transparent",
-              border: "none",
-              color: GOLD,
-              cursor: "pointer",
-              fontSize: "13px",
-            }}
-          >
-            ← Kembali ke Game Hub
-          </button>
         </div>
       </div>
     );
   }
 
-  /*
-   * =====================================================
-   * GAME BOARD
-   * =====================================================
-   */
-
-  if (!gameState) {
-    return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: BG,
-          color: CREAM,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        Memuat papan Chess...
-      </div>
-    );
-  }
+  // =========================================
+  // MAIN UI
+  // =========================================
 
   return (
     <div
@@ -1848,10 +1582,11 @@ export function Chess() {
       <div
         style={{
           width: "100%",
-          maxWidth: "580px",
+          maxWidth: "620px",
           margin: "0 auto",
           display: "flex",
-          flexDirection: "column",
+          flexDirection:
+            "column",
           alignItems: "center",
         }}
       >
@@ -1877,68 +1612,89 @@ export function Chess() {
             ♟ Chess
           </div>
 
-          <div
-            style={{
-              marginTop: "6px",
-              fontSize:
-                "clamp(14px, 3vw, 18px)",
-              fontWeight: 700,
-              color:
-                status.status ===
-                "checkmate"
-                  ? "#ff6b6b"
-                  : status.status ===
-                    "check"
-                  ? "#ffb347"
-                  : CREAM,
-            }}
-          >
-            {getStatusText()}
-          </div>
+          {gameStarted && (
+            <div
+              style={{
+                marginTop: "6px",
+                fontSize:
+                  "clamp(15px, 3vw, 19px)",
+                fontWeight: 700,
+                color:
+                  status.status ===
+                  "checkmate"
+                    ? "#ff6b6b"
+                    : status.status ===
+                      "check"
+                    ? "#ffb347"
+                    : CREAM,
+              }}
+            >
+              {getStatusText()}
+            </div>
+          )}
         </div>
 
-        {/* PLAYER INFO */}
+        {/* ROOM BAR */}
 
         <div
           style={{
             width: "90vw",
-            maxWidth: "560px",
-            display: "flex",
-            justifyContent:
-              "space-between",
+            maxWidth: "680px",
+            display: "grid",
+            gridTemplateColumns:
+              "1fr auto 1fr",
             alignItems: "center",
-            gap: "10px",
-            marginBottom: "12px",
+            gap: "8px",
+            marginBottom: "10px",
           }}
         >
           <div
             style={{
-              padding: "7px 11px",
-              borderRadius: "8px",
-              background:
-                myColor === "white"
-                  ? GOLD
-                  : "rgba(255,255,255,0.08)",
-              color:
-                myColor === "white"
-                  ? "#17100c"
-                  : CREAM,
-              fontSize: "12px",
-              fontWeight: 800,
+              justifySelf:
+                "start",
             }}
           >
-            ♔ PUTIH
-            {roomData.players
-              ?.white?.id ===
-              playerId
-              ? " • LU"
-              : ""}
+            <button
+              type="button"
+              onClick={() =>
+                !gameStarted &&
+                takeSeat("white")
+              }
+              style={{
+                background:
+                  myColor === "white"
+                    ? "#2c2521"
+                    : "rgba(255,255,255,0.06)",
+                color: CREAM,
+                border: "none",
+                borderRadius: "9px",
+                padding:
+                  "9px 13px",
+                fontWeight: 700,
+                cursor:
+                  gameStarted
+                    ? "default"
+                    : "pointer",
+                opacity:
+                  roomData.players
+                    ?.white &&
+                  myColor !==
+                    "white"
+                    ? 0.5
+                    : 1,
+              }}
+            >
+              ♔ PUTIH
+            </button>
           </div>
 
           <div
             style={{
+              textAlign: "center",
               fontSize: "12px",
               opacity: 0.65,
+              whiteSpace:
+                "nowrap",
             }}
           >
             ROOM {roomId}
@@ -1946,329 +1702,533 @@ export function Chess() {
 
           <div
             style={{
-              padding: "7px 11px",
-              borderRadius: "8px",
-              background:
-                myColor === "black"
-                  ? GOLD
-                  : "rgba(255,255,255,0.08)",
-              color:
-                myColor === "black"
-                  ? "#17100c"
-                  : CREAM,
-              fontSize: "12px",
-              fontWeight: 800,
+              justifySelf:
+                "end",
             }}
           >
-            ♚ HITAM
-            {roomData.players
-              ?.black?.id ===
-              playerId
-              ? " • LU"
-              : ""}
+            <button
+              type="button"
+              onClick={() =>
+                !gameStarted &&
+                takeSeat("black")
+              }
+              style={{
+                background:
+                  myColor === "black"
+                    ? GOLD
+                    : "rgba(255,255,255,0.06)",
+                color:
+                  myColor === "black"
+                    ? "#17100c"
+                    : CREAM,
+                border: "none",
+                borderRadius: "9px",
+                padding:
+                  "9px 13px",
+                fontWeight: 700,
+                cursor:
+                  gameStarted
+                    ? "default"
+                    : "pointer",
+                opacity:
+                  roomData.players
+                    ?.black &&
+                  myColor !==
+                    "black"
+                    ? 0.5
+                    : 1,
+              }}
+            >
+              ♜ HITAM
+              {myColor ===
+                "black" &&
+                " • LU"}
+            </button>
           </div>
         </div>
 
-        {/* BOARD */}
+        {/* LOBBY */}
 
-        <div
-          style={{
-            width: "90vw",
-            maxWidth: "560px",
-            aspectRatio: "1 / 1",
-            margin: "0 auto",
-            boxSizing: "border-box",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(8, 1fr)",
-              gridTemplateRows:
-                "repeat(8, 1fr)",
-              border:
-                `3px solid ${GOLD}`,
-              borderRadius: "4px",
-              overflow: "hidden",
-              boxSizing: "border-box",
-              boxShadow:
-              
-                "0 8px 25px rgba(0,0,0,0.35)",
-                transform:
-  myColor === "black"
-    ? "rotate(180deg)"
-    : "none",
-            }}
-          >
-           {Array.from({ length: 8 }, (_, displayRow) =>
-  Array.from({ length: 8 }, (_, displayCol) => {
-    const boardRow =
-      myColor === "black"
-        ? 7 - displayRow
-        : displayRow;
-
-    const boardCol =
-      myColor === "black"
-        ? 7 - displayCol
-        : displayCol;
-
-    const piece =
-      gameState.board[boardRow][boardCol];
-
-    const isDark =
-      (displayRow + displayCol) % 2 === 1;
-
-    const isSelected =
-      selected?.row === boardRow &&
-      selected?.col === boardCol;
-
-    const isValidMove =
-      validMoves.some(
-        (move) =>
-          move.row === boardRow &&
-          move.col === boardCol
-      );
-
-    const hasEnemyPiece =
-      piece &&
-      selected &&
-      piece.color !==
-        gameState.board[selected.row][selected.col]?.color;
-
-    const isCheckedKing =
-      checkedKing &&
-      checkedKing.row === boardRow &&
-      checkedKing.col === boardCol;
-
-    return (
-      <button
-        key={`${boardRow}-${boardCol}`}
-        type="button"
-        onClick={() =>
-          handleSquareClick(boardRow, boardCol)
-        }
-        style={{
-          width: "100%",
-          height: "100%",
-          minWidth: 0,
-          minHeight: 0,
-          border: "none",
-          borderRadius: 0,
-          padding: 0,
-          margin: 0,
-
-          background:
-            isCheckedKing
-              ? "#b33a3a"
-              : isSelected
-              ? GOLD
-              : isDark
-              ? "#8B6F47"
-              : "#F0D9B5",
-
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-
-          cursor:
-            status.gameOver ||
-            pendingPromotion
-              ? "default"
-              : "pointer",
-
-          userSelect: "none",
-          WebkitTapHighlightColor: "transparent",
-          boxSizing: "border-box",
-          position: "relative",
-          transform:
-  myColor === "black"
-    ? "rotate(180deg)"
-    : "none",
-        }}
-      >
-        {/* PIECE */}
-
-        {piece && (
-          <span
-            style={{
-              display: "block",
-              fontSize:
-                "clamp(30px, 7vw, 58px)",
-              lineHeight: 1,
-              transform: "translateY(-1px)",
-
-              color:
-                piece.color === "white"
-                  ? "#ffffff"
-                  : "#111111",
-
-              textShadow:
-                piece.color === "white"
-                  ? "0 1px 2px rgba(0,0,0,0.8)"
-                  : "0 1px 1px rgba(255,255,255,0.8)",
-
-              pointerEvents: "none",
-              position: "relative",
-              zIndex: 2,
-            }}
-          >
-            {getPieceSymbol(piece)}
-          </span>
-        )}
-
-        {/* MOVE DOT */}
-
-        {isValidMove && (
-          <span
-            style={{
-              position: "absolute",
-
-              width: hasEnemyPiece
-                ? "78%"
-                : "24%",
-
-              height: hasEnemyPiece
-                ? "78%"
-                : "24%",
-
-              borderRadius: "50%",
-
-              background: hasEnemyPiece
-                ? "rgba(190,40,40,0.35)"
-                : "rgba(30,30,30,0.35)",
-
-              pointerEvents: "none",
-              zIndex: 1,
-            }}
-          />
-        )}
-      </button>
-    );
-  })
-)}
-          </div>
-        </div>
-
-        {/* PROMOTION */}
-
-        {pendingPromotion && (
+        {!gameStarted && (
           <div
             style={{
               width: "90vw",
               maxWidth: "560px",
-              marginTop: "16px",
-              padding: "14px",
-              boxSizing:
-                "border-box",
               background:
                 "rgba(255,255,255,0.06)",
               border:
-                `1px solid rgba(201,162,39,0.5)`,
-              borderRadius: "12px",
-              textAlign: "center",
+                "1px solid rgba(201,162,39,0.3)",
+              borderRadius: "14px",
+              padding: "16px",
+              boxSizing:
+                "border-box",
+              marginBottom: "14px",
             }}
           >
             <div
               style={{
+                textAlign:
+                  "center",
                 fontWeight: 700,
-                marginBottom: "10px",
+                marginBottom:
+                  "12px",
               }}
             >
-              Pilih promosi pion:
+              Lobby Chess
             </div>
 
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns:
-                  "repeat(4, 1fr)",
-                gap: "8px",
+                  "1fr 1fr",
+                gap: "10px",
               }}
             >
-              {PROMOTION_OPTIONS.map(
-                (option) => {
-                  const movingPiece =
-                    gameState
-                      .board[
-                      pendingPromotion
-                        .from.row
-                    ]?.[
-                      pendingPromotion
-                        .from.col
-                    ];
+              <div
+                style={{
+                  background:
+                    "rgba(255,255,255,0.05)",
+                  borderRadius:
+                    "10px",
+                  padding: "12px",
+                  textAlign:
+                    "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize:
+                      "13px",
+                    marginBottom:
+                      "5px",
+                  }}
+                >
+                  ♔ PUTIH
+                </div>
 
-                  if (!movingPiece) {
-                    return null;
-                  }
+                <div
+                  style={{
+                    fontSize:
+                      "12px",
+                    opacity: 0.7,
+                  }}
+                >
+                  {roomData
+                    .players
+                    ?.white
+                    ? roomData
+                        .players
+                        .white
+                        .id ===
+                      playerId
+                      ? "Lu"
+                      : "Terisi"
+                    : "Kosong"}
+                </div>
 
-                  return (
-                    <button
-                      key={option.type}
-                      type="button"
-                      onClick={() =>
-                        executeMove(
-                          pendingPromotion.move,
-                          option.type
-                        )
-                      }
-                      style={{
-                        minHeight:
-                          "70px",
-                        background:
-                          "rgba(255,255,255,0.08)",
-                        color: CREAM,
-                        border:
-                          `1px solid ${GOLD}`,
-                        borderRadius:
-                          "8px",
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize:
-                            "32px",
-                        }}
-                      >
-                        {getPieceSymbol({
-                          type:
-                            option.type,
-                          color:
-                            movingPiece.color,
-                        })}
-                      </div>
+                {myColor ===
+                  "white" && (
+                  <button
+                    type="button"
+                    onClick={
+                      leaveSeat
+                    }
+                    style={{
+                      marginTop:
+                        "8px",
+                      background:
+                        "transparent",
+                      color:
+                        "#ffb0b0",
+                      border:
+                        "1px solid #9d4a4a",
+                      borderRadius:
+                        "7px",
+                      padding:
+                        "6px 9px",
+                      cursor:
+                        "pointer",
+                      fontSize:
+                        "11px",
+                    }}
+                  >
+                    Ganti Kursi
+                  </button>
+                )}
+              </div>
 
-                      <div
-                        style={{
-                          fontSize:
-                            "11px",
-                          marginTop:
-                            "3px",
-                        }}
-                      >
-                        {option.label}
-                      </div>
-                    </button>
-                  );
-                }
-              )}
+              <div
+                style={{
+                  background:
+                    "rgba(255,255,255,0.05)",
+                  borderRadius:
+                    "10px",
+                  padding: "12px",
+                  textAlign:
+                    "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize:
+                      "13px",
+                    marginBottom:
+                      "5px",
+                  }}
+                >
+                  ♜ HITAM
+                </div>
+
+                <div
+                  style={{
+                    fontSize:
+                      "12px",
+                    opacity: 0.7,
+                  }}
+                >
+                  {roomData
+                    .players
+                    ?.black
+                    ? roomData
+                        .players
+                        .black
+                        .id ===
+                      playerId
+                      ? "Lu"
+                      : "Terisi"
+                    : "Kosong"}
+                </div>
+
+                {myColor ===
+                  "black" && (
+                  <button
+                    type="button"
+                    onClick={
+                      leaveSeat
+                    }
+                    style={{
+                      marginTop:
+                        "8px",
+                      background:
+                        "transparent",
+                      color:
+                        "#ffb0b0",
+                      border:
+                        "1px solid #9d4a4a",
+                      borderRadius:
+                        "7px",
+                      padding:
+                        "6px 9px",
+                      cursor:
+                        "pointer",
+                      fontSize:
+                        "11px",
+                    }}
+                  >
+                    Ganti Kursi
+                  </button>
+                )}
+              </div>
             </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "center",
+                gap: "8px",
+                flexWrap:
+                  "wrap",
+                marginTop:
+                  "14px",
+              }}
+            >
+              {myColor !==
+                "white" &&
+                !roomData.players
+                  ?.white && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      takeSeat(
+                        "white"
+                      )
+                    }
+                    style={{
+                      background:
+                        "#e9ddc4",
+                      color:
+                        "#17100c",
+                      border:
+                        "none",
+                      borderRadius:
+                        "8px",
+                      padding:
+                        "10px 14px",
+                      fontWeight:
+                        700,
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+                    Pilih Putih
+                  </button>
+                )}
+
+              {myColor !==
+                "black" &&
+                !roomData.players
+                  ?.black && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      takeSeat(
+                        "black"
+                      )
+                    }
+                    style={{
+                      background:
+                        GOLD,
+                      color:
+                        "#17100c",
+                      border:
+                        "none",
+                      borderRadius:
+                        "8px",
+                      padding:
+                        "10px 14px",
+                      fontWeight:
+                        700,
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+                    Pilih Hitam
+                  </button>
+                )}
+            </div>
+
+            {roomData.host ===
+              playerId && (
+              <button
+                type="button"
+                onClick={
+                  startGame
+                }
+                disabled={
+                  !roomData
+                    .players
+                    ?.white ||
+                  !roomData
+                    .players
+                    ?.black ||
+                  loading
+                }
+                style={{
+                  width: "100%",
+                  marginTop:
+                    "14px",
+                  padding:
+                    "12px",
+                  border: "none",
+                  borderRadius:
+                    "9px",
+                  background:
+                    roomData
+                      .players
+                      ?.white &&
+                    roomData
+                      .players
+                      ?.black
+                      ? GOLD
+                      : "#555",
+                  color:
+                    "#17100c",
+                  fontWeight:
+                    700,
+                  cursor:
+                    roomData
+                      .players
+                      ?.white &&
+                    roomData
+                      .players
+                      ?.black
+                      ? "pointer"
+                      : "default",
+                }}
+              >
+                Mulai Chess
+              </button>
+            )}
           </div>
         )}
+
+        {/* GAME */}
+
+        {gameStarted &&
+          gameState && (
+            <>
+              {renderBoard()}
+
+              {/* PROMOTION */}
+
+              {pendingPromotion && (
+                <div
+                  style={{
+                    width: "90vw",
+                    maxWidth:
+                      "560px",
+                    marginTop:
+                      "16px",
+                    padding:
+                      "14px",
+                    boxSizing:
+                      "border-box",
+                    background:
+                      "rgba(255,255,255,0.06)",
+                    border:
+                      `1px solid rgba(201,162,39,0.5)`,
+                    borderRadius:
+                      "12px",
+                    textAlign:
+                      "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight:
+                        700,
+                      marginBottom:
+                        "10px",
+                    }}
+                  >
+                    Pilih promosi
+                    pion:
+                  </div>
+
+                  <div
+                    style={{
+                      display:
+                        "grid",
+                      gridTemplateColumns:
+                        "repeat(4, 1fr)",
+                      gap: "8px",
+                    }}
+                  >
+                    {PROMOTION_OPTIONS.map(
+                      (option) => {
+                        const movingPiece =
+                          gameState
+                            .board[
+                            pendingPromotion
+                              .from
+                              .row
+                          ][
+                            pendingPromotion
+                              .from
+                              .col
+                          ];
+
+                        return (
+                          <button
+                            key={
+                              option.type
+                            }
+                            type="button"
+                            onClick={() =>
+                              executeMove(
+                                pendingPromotion.move,
+                                option.type
+                              )
+                            }
+                            style={{
+                              minHeight:
+                                "70px",
+                              background:
+                                "rgba(255,255,255,0.08)",
+                              color:
+                                CREAM,
+                              border:
+                                `1px solid ${GOLD}`,
+                              borderRadius:
+                                "8px",
+                              cursor:
+                                "pointer",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize:
+                                  "32px",
+                              }}
+                            >
+                              {getPieceSymbol(
+                                {
+                                  type:
+                                    option.type,
+                                  color:
+                                    movingPiece.color,
+                                }
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize:
+                                  "11px",
+                                marginTop:
+                                  "3px",
+                              }}
+                            >
+                              {
+                                option.label
+                              }
+                            </div>
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop:
+                    "14px",
+                  textAlign:
+                    "center",
+                  fontSize:
+                    "13px",
+                  opacity: 0.8,
+                }}
+              >
+                {myColor
+                  ? myColor ===
+                    gameState.turn
+                    ? "Giliran lu."
+                    : "Bukan giliran lu."
+                  : "Lu belum memilih kursi."}
+              </div>
+            </>
+          )}
 
         {/* MESSAGE */}
 
         {message && (
           <div
             style={{
-              marginTop: "12px",
-              textAlign: "center",
-              fontSize: "13px",
+              marginTop:
+                "10px",
+              textAlign:
+                "center",
+              fontSize:
+                "13px",
+              color:
+                "#ffd98a",
+              minHeight:
+                "18px",
             }}
           >
             {message}
@@ -2281,71 +2241,95 @@ export function Chess() {
           style={{
             width: "90vw",
             maxWidth: "560px",
-            marginTop: "18px",
+            marginTop:
+              "18px",
             display: "flex",
             justifyContent:
               "center",
             gap: "10px",
-            flexWrap: "wrap",
+            flexWrap:
+              "wrap",
           }}
         >
-          {roomData.host ===
-            playerId && (
-            <button
-              type="button"
-              onClick={resetGame}
-              style={{
-                background: GOLD,
-                color: "#17100c",
-                border: "none",
-                borderRadius: "8px",
-                padding:
-                  "11px 17px",
-                fontSize: "14px",
-                fontWeight: 700,
-                cursor: "pointer",
-                minHeight: "42px",
-              }}
-            >
-              Reset Chess
-            </button>
-          )}
+          {gameStarted &&
+            roomData.host ===
+              playerId && (
+              <button
+                type="button"
+                onClick={
+                  resetGame
+                }
+                style={{
+                  background:
+                    GOLD,
+                  color:
+                    "#17100c",
+                  border: "none",
+                  borderRadius:
+                    "8px",
+                  padding:
+                    "11px 17px",
+                  fontSize:
+                    "14px",
+                  fontWeight:
+                    700,
+                  cursor:
+                    "pointer",
+                  minHeight:
+                    "42px",
+                }}
+              >
+                Reset Chess
+              </button>
+            )}
 
           <button
             type="button"
-            onClick={leaveRoom}
+            onClick={
+              leaveRoom
+            }
             style={{
               background:
                 "transparent",
               color: CREAM,
               border:
                 `1px solid ${GOLD}`,
-              borderRadius: "8px",
+              borderRadius:
+                "8px",
               padding:
                 "11px 17px",
-              fontSize: "14px",
-              fontWeight: 700,
-              cursor: "pointer",
-              minHeight: "42px",
+              fontSize:
+                "14px",
+              fontWeight:
+                700,
+              cursor:
+                "pointer",
+              minHeight:
+                "42px",
             }}
           >
             ← Kembali ke Game Hub
           </button>
         </div>
 
+        {/* ROOM INFO */}
+
         <div
           style={{
-            marginTop: "14px",
-            textAlign: "center",
-            fontSize: "12px",
-            lineHeight: 1.5,
-            opacity: 0.5,
-            maxWidth: "560px",
+            marginTop:
+              "12px",
+            textAlign:
+              "center",
+            fontSize:
+              "11px",
+            opacity: 0.45,
           }}
         >
-          Multiplayer Chess • Firebase
+          Room: {roomId}
         </div>
       </div>
     </div>
   );
 }
+
+export default Chess;
