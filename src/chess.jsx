@@ -1880,7 +1880,10 @@ export function Chess() {
                       "5px",
                   }}
                 >
-                  ♜ HITAM
+                  ♜ PUTIH
+                   {myColor ===
+                "WHITE" &&
+                "•"}
                 </div>
 
                 <div
