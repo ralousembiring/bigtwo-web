@@ -4,6 +4,8 @@ import { ref, onValue, runTransaction, set } from "firebase/database";
 import { UndercoverGame } from "./Undercover.jsx";
 import { UlarTangga } from "./UlarTangga.jsx";
 import { Chess } from "./chess.jsx";
+import { BomBomGame } from "./BomBom.jsx";
+import { BomBomArena3D } from "./BomBomArena3D.jsx";
 import {
   SUITS,
   rankLabel,
@@ -1450,6 +1452,32 @@ function HomeHub() {
     Game catur multiplayer 2 pemain.
   </div>
 </button>
+<button
+  style={cardStyle}
+  onClick={() => navigate("bom-bom")}
+>
+  <div style={{ fontSize: 32 }}>💣</div>
+
+  <div
+    style={{
+      fontSize: 18,
+      fontWeight: 700,
+      marginTop: 8,
+    }}
+  >
+    Bom-Bom
+  </div>
+
+  <div
+    style={{
+      fontSize: 12,
+      opacity: 0.7,
+      marginTop: 5,
+    }}
+  >
+    Game arena multiplayer dengan bom.
+  </div>
+</button>
         </div>
                 <div style={{ textAlign: "center", marginTop: 20 }}>
           <SupportButton />
@@ -1492,7 +1520,12 @@ function GameRouter() {
 
   if (game === "chess") return <Chess />;
 
+  if (game === "bom-bom") return <BomBomGame />;
+
+  if (game === "arena-test") return <BomBomArena3D />;
+
   if (game === "big-two" || room) return <BigTwoGame />;
+  
 
   return <HomeHub />;
 }
