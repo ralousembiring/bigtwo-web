@@ -706,6 +706,8 @@ function RemotePlayer({ player }) {
       : 0
   );
 
+  // Status gerak berasal dari update jaringan, bukan perpindahan satu frame.
+  // Jadi animasi walk tidak flicker saat update Firebase datang berkala.
   const movingUntil = useRef(0);
   const lastAnimation = useRef("idle");
   const [animation, setAnimation] = useState("idle");
@@ -717,9 +719,9 @@ function RemotePlayer({ player }) {
     const nextZ = player.position?.z || 0;
 
     const changed =
-      Math.abs(targetPosition.current.x - nextX) > 0.002 ||
-      Math.abs(targetPosition.current.y - nextY) > 0.002 ||
-      Math.abs(targetPosition.current.z - nextZ) > 0.002;
+      Math.abs(targetPosition.current.x - nextX) > 0.001 ||
+      Math.abs(targetPosition.current.y - nextY) > 0.001 ||
+      Math.abs(targetPosition.current.z - nextZ) > 0.001;
 
     targetPosition.current.set(nextX, nextY, nextZ);
 
@@ -727,8 +729,9 @@ function RemotePlayer({ player }) {
       targetRotation.current = player.position.rotationY;
     }
 
+    // Beri sedikit overlap antar-update jaringan agar animasi jalan stabil.
     if (changed) {
-      movingUntil.current = Date.now() + 220;
+      movingUntil.current = Date.now() + 150;
     }
   }, [
     player.position?.x,
@@ -748,22 +751,47 @@ function RemotePlayer({ player }) {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    const smooth = 1 - Math.pow(0.0001, delta);
-    groupRef.current.position.lerp(targetPosition.current, smooth);
+    // Exponential smoothing: gerakan mengejar target dengan halus dan
+    // tetap konsisten walau FPS perangkat berbeda.
+    const positionSmooth = 1 - Math.exp(-16 * delta);
+
+    groupRef.current.position.lerp(
+      targetPosition.current,
+      Math.min(1, positionSmooth)
+    );
+
+    const rotationSmooth = 1 - Math.exp(-18 * delta);
 
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
       targetRotation.current,
-      Math.min(1, delta * 12)
+      Math.min(1, rotationSmooth)
     );
 
+    // Animasi tidak lagi bergantung pada jarak yang ditempuh dalam 1 frame.
+    const distanceToTarget =
+      groupRef.current.position.distanceTo(targetPosition.current);
+
     const networkMoving = Date.now() < movingUntil.current;
+    const visuallyMoving = distanceToTarget > 0.025;
+
     let nextAnimation = "idle";
 
-    if (throwing) nextAnimation = "throw";
-    else if (player.isJumping || player.position?.y > 1.2) nextAnimation = "jump";
-    else if (networkMoving) nextAnimation = player.isRunning || player.isBot ? "run" : "walk";
+    if (throwing) {
+      nextAnimation = "throw";
+    } else if (
+      player.isJumping ||
+      player.position?.y > 1.2
+    ) {
+      nextAnimation = "jump";
+    } else if (networkMoving || visuallyMoving) {
+      nextAnimation =
+        player.isRunning || player.isBot
+          ? "run"
+          : "walk";
+    }
 
+    // Hanya reset animation kalau state benar-benar berubah.
     if (lastAnimation.current !== nextAnimation) {
       lastAnimation.current = nextAnimation;
       setAnimation(nextAnimation);
