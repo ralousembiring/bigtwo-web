@@ -25,49 +25,49 @@ const CHARACTERS = [
     id: "fanzi",
     name: "Fanzi",
     emoji: "⚡",
-    description: "Cepat dan gesit",
+    
   },
   {
     id: "echa",
     name: "Echa",
     emoji: "🌸",
-    description: "Tenang dan elegan",
+    
   },
   {
     id: "andy",
     name: "Andy",
     emoji: "🧢",
-    description: "Seimbang",
+    
   },
   {
     id: "kevin",
     name: "Kevin",
     emoji: "🤖",
-    description: "Ahli strategi",
+    
   },
   {
     id: "sherina",
     name: "Sherina",
     emoji: "🌷",
-    description: "Lincah dan cepat",
+    
   },
   {
     id: "maled",
     name: "Male D",
     emoji: "🧍",
-    description: "Tangguh dan berani",
+    
   },
   {
     id: "malee",
     name: "Male E",
     emoji: "🔥",
-    description: "Berani dan kuat",
+    
   },
   {
     id: "femalec",
     name: "Female C",
     emoji: "✨",
-    description: "Lincah dan tenang",
+    
   },
 ];
 
