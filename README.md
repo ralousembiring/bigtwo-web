@@ -1,8 +1,8 @@
-# Kartu 3 sampai 2 (Big Two) — Versi Website Multiplayer
+# RGAMEHUB (Ralou Game Hub) — Versi Website Multiplayer
 
 Versi ini pakai **Firebase Realtime Database** untuk sinkronisasi antar pemain secara real-time
 (pakai listener langsung, bukan polling seperti versi artifact sebelumnya — jadi lebih cepat dan
-lebih tahan dari masalah "dua orang klik bersamaan", karena tiap aksi (duduk di kursi, main kartu,
+lebih tahan dari masalah "dua orang klik bersamaan", karena tiap aksi (duduk di kursi, main,
 pass) dibungkus `runTransaction` yang atomik.
 
 Fitur tambahan dibanding versi artifact:
