@@ -745,6 +745,20 @@ function RemotePlayer({ player }) {
       Math.min(1, delta * 12)
     );
 
+    // Kalau device pengirim belum mengirim rotationY dengan benar,
+    // arah hadap remote tetap mengikuti arah perpindahannya.
+    const moveDX =
+      groupRef.current.position.x - before.x;
+    const moveDZ =
+      groupRef.current.position.z - before.z;
+
+    if (Math.abs(moveDX) + Math.abs(moveDZ) > 0.0005) {
+      targetRotation.current = Math.atan2(
+        moveDX,
+        moveDZ
+      );
+    }
+
     groupRef.current.rotation.y =
       THREE.MathUtils.lerp(
         groupRef.current.rotation.y,
