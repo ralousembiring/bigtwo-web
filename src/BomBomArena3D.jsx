@@ -1428,6 +1428,7 @@ function ArenaScene({
   onPositionChange,
   isHost,
   mobileInputRef,
+  mobileJumpRef,
 }) {
   const playerRef = useRef();
 
