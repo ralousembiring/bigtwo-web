@@ -656,7 +656,7 @@ function LocalPlayer({
 
     const now = Date.now();
 
-    if (now - lastSync.current > 50) {
+    if (now - lastSync.current > 33) {
       lastSync.current = now;
 
       onPositionChange(
@@ -700,6 +700,14 @@ function RemotePlayer({ player }) {
     )
   );
 
+  // Perkiraan kecepatan dari dua paket jaringan terakhir.
+  // Ini membuat karakter tetap terlihat bergerak di antara update Firebase.
+  const networkVelocity = useRef(new THREE.Vector3());
+  const lastNetworkPosition = useRef(targetPosition.current.clone());
+  const lastNetworkTime = useRef(Date.now());
+
+  const predictedPosition = useRef(targetPosition.current.clone());
+
   const targetRotation = useRef(
     typeof player.position?.rotationY === "number"
       ? player.position.rotationY
@@ -718,20 +726,54 @@ function RemotePlayer({ player }) {
     const nextY = player.position?.y || 1;
     const nextZ = player.position?.z || 0;
 
+    const nextPosition = new THREE.Vector3(
+      nextX,
+      nextY,
+      nextZ
+    );
+
     const changed =
       Math.abs(targetPosition.current.x - nextX) > 0.001 ||
       Math.abs(targetPosition.current.y - nextY) > 0.001 ||
       Math.abs(targetPosition.current.z - nextZ) > 0.001;
 
-    targetPosition.current.set(nextX, nextY, nextZ);
+    const now = Date.now();
+    const elapsed = Math.max(
+      16,
+      now - lastNetworkTime.current
+    );
+
+    if (changed) {
+      const rawVelocity = nextPosition
+        .clone()
+        .sub(lastNetworkPosition.current)
+        .multiplyScalar(1000 / elapsed);
+
+      // Batasi kecepatan prediksi supaya paket jaringan yang loncat
+      // tidak membuat karakter teleport atau meluncur terlalu jauh.
+      const maxSpeed = 7.5;
+
+      if (rawVelocity.length() > maxSpeed) {
+        rawVelocity.setLength(maxSpeed);
+      }
+
+      networkVelocity.current.lerp(
+        rawVelocity,
+        0.75
+      );
+
+      lastNetworkPosition.current.copy(
+        nextPosition
+      );
+
+      lastNetworkTime.current = now;
+      movingUntil.current = now + 140;
+    }
+
+    targetPosition.current.copy(nextPosition);
 
     if (typeof player.position?.rotationY === "number") {
       targetRotation.current = player.position.rotationY;
-    }
-
-    // Beri sedikit overlap antar-update jaringan agar animasi jalan stabil.
-    if (changed) {
-      movingUntil.current = Date.now() + 150;
     }
   }, [
     player.position?.x,
@@ -751,16 +793,29 @@ function RemotePlayer({ player }) {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    // Exponential smoothing: gerakan mengejar target dengan halus dan
-    // tetap konsisten walau FPS perangkat berbeda.
-    const positionSmooth = 1 - Math.exp(-16 * delta);
+    // Prediksi ringan hanya beberapa milidetik ke depan.
+    // Tujuannya mengisi celah antar paket jaringan, bukan menggantikan
+    // posisi server.
+    const predictionTime = 0.065;
+
+    predictedPosition.current.copy(
+      targetPosition.current
+    );
+
+    const prediction = networkVelocity.current
+      .clone()
+      .multiplyScalar(predictionTime);
+
+    predictedPosition.current.add(prediction);
+
+    const positionSmooth = 1 - Math.exp(-20 * delta);
 
     groupRef.current.position.lerp(
-      targetPosition.current,
+      predictedPosition.current,
       Math.min(1, positionSmooth)
     );
 
-    const rotationSmooth = 1 - Math.exp(-18 * delta);
+    const rotationSmooth = 1 - Math.exp(-22 * delta);
 
     groupRef.current.rotation.y = THREE.MathUtils.lerp(
       groupRef.current.rotation.y,
@@ -768,12 +823,25 @@ function RemotePlayer({ player }) {
       Math.min(1, rotationSmooth)
     );
 
-    // Animasi tidak lagi bergantung pada jarak yang ditempuh dalam 1 frame.
-    const distanceToTarget =
-      groupRef.current.position.distanceTo(targetPosition.current);
+    // Saat tidak ada update baru, kecepatan prediksi dilemahkan perlahan
+    // agar karakter berhenti halus dan tidak terus meluncur.
+    if (Date.now() >= movingUntil.current) {
+      networkVelocity.current.multiplyScalar(
+        Math.pow(0.001, delta)
+      );
+    }
 
-    const networkMoving = Date.now() < movingUntil.current;
-    const visuallyMoving = distanceToTarget > 0.025;
+    const distanceToTarget =
+      groupRef.current.position.distanceTo(
+        targetPosition.current
+      );
+
+    const networkMoving =
+      Date.now() < movingUntil.current;
+
+    const visuallyMoving =
+      distanceToTarget > 0.018 ||
+      networkVelocity.current.length() > 0.08;
 
     let nextAnimation = "idle";
 
