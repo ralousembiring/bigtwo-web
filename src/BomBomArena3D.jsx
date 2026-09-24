@@ -694,7 +694,9 @@ function RemotePlayer({ player }) {
   );
 
   const targetRotation = useRef(
-    player.rotationY || 0
+    typeof player.position?.rotationY === "number"
+      ? player.position.rotationY
+      : 0
   );
 
   const [animation, setAnimation] =
@@ -710,14 +712,14 @@ function RemotePlayer({ player }) {
       player.position?.z || 0
     );
 
-    if (typeof player.rotationY === "number") {
-      targetRotation.current = player.rotationY;
+    if (typeof player.position?.rotationY === "number") {
+      targetRotation.current = player.position.rotationY;
     }
   }, [
     player.position?.x,
     player.position?.y,
     player.position?.z,
-    player.rotationY,
+    player.position?.rotationY,
   ]);
 
   useEffect(() => {
@@ -787,7 +789,9 @@ function RemotePlayer({ player }) {
       ]}
       rotation={[
         0,
-        player.rotationY || 0,
+        typeof player.position?.rotationY === "number"
+          ? player.position.rotationY
+          : 0,
         0,
       ]}
     >
