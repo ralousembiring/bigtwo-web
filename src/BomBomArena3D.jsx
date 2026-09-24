@@ -354,6 +354,7 @@ function LocalPlayer({
   alive,
   onPositionChange,
   mobileInputRef,
+  mobileJumpRef,
 }) {
   const keys = useRef({
     forward: false,
@@ -468,6 +469,12 @@ function LocalPlayer({
     }
 
     const speed = 5;
+
+    if (mobileJumpRef?.current && isGrounded.current) {
+      velocityY.current = 8;
+      isGrounded.current = false;
+      mobileJumpRef.current = false;
+    }
 
     let x = 0;
     let z = 0;
@@ -649,7 +656,7 @@ function LocalPlayer({
 
     const now = Date.now();
 
-    if (now - lastSync.current > 100) {
+    if (now - lastSync.current > 50) {
       lastSync.current = now;
 
       onPositionChange(
@@ -1451,6 +1458,7 @@ function ArenaScene({
   onPositionChange,
   isHost,
   mobileInputRef,
+  mobileJumpRef,
 }) {
   const playerRef = useRef();
 
@@ -1614,6 +1622,7 @@ function ArenaScene({
           onPositionChange
         }
         mobileInputRef={mobileInputRef}
+        mobileJumpRef={mobileJumpRef}
       />
 
       {!bombFlying && (
@@ -1646,7 +1655,7 @@ function ArenaScene({
    MOBILE VIRTUAL JOYSTICK
 ========================= */
 
-function VirtualJoystick({ inputRef, disabled }) {
+function VirtualJoystick({ inputRef, disabled, onJump }) {
   const activePointer = useRef(null);
   const baseRef = useRef(null);
   const RADIUS = 52;
@@ -1737,41 +1746,80 @@ function VirtualJoystick({ inputRef, disabled }) {
 
   return (
     <div
-      ref={baseRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onLostPointerCapture={handlePointerUp}
       style={{
-        width: 118,
-        height: 118,
-        borderRadius: '50%',
-        background: 'rgba(20,14,10,0.48)',
-        border: '2px solid rgba(245,239,224,0.45)',
-        boxShadow: '0 8px 25px rgba(0,0,0,0.35)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'flex-end',
+        gap: 18,
         touchAction: 'none',
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        opacity: disabled ? 0.45 : 1,
       }}
     >
       <div
-        data-joystick-knob="true"
+        ref={baseRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onLostPointerCapture={handlePointerUp}
         style={{
-          width: 58,
-          height: 58,
+          width: 118,
+          height: 118,
           borderRadius: '50%',
-          background: 'rgba(201,162,39,0.92)',
-          border: '2px solid rgba(245,239,224,0.9)',
-          boxShadow: '0 5px 15px rgba(0,0,0,0.35)',
-          transition: 'transform 0.04s linear',
-          pointerEvents: 'none',
+          background: 'rgba(20,14,10,0.48)',
+          border: '2px solid rgba(245,239,224,0.45)',
+          boxShadow: '0 8px 25px rgba(0,0,0,0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          opacity: disabled ? 0.45 : 1,
         }}
-      />
+      >
+        <div
+          data-joystick-knob="true"
+          style={{
+            width: 58,
+            height: 58,
+            borderRadius: '50%',
+            background: 'rgba(201,162,39,0.92)',
+            border: '2px solid rgba(245,239,224,0.9)',
+            boxShadow: '0 5px 15px rgba(0,0,0,0.35)',
+            transition: 'transform 0.04s linear',
+            pointerEvents: 'none',
+          }}
+        />
+      </div>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!disabled) onJump?.();
+        }}
+        style={{
+          width: 78,
+          height: 78,
+          borderRadius: '50%',
+          border: '2px solid rgba(245,239,224,0.9)',
+          background: 'rgba(201,162,39,0.92)',
+          color: '#1a1310',
+          fontSize: 28,
+          fontWeight: 900,
+          boxShadow: '0 8px 22px rgba(0,0,0,0.35)',
+          touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          opacity: disabled ? 0.45 : 1,
+        }}
+        aria-label="Lompat"
+      >
+        ↑
+      </button>
     </div>
   );
 }
@@ -1788,6 +1836,7 @@ export function BomBomArena3D({
   roomCode,
 }) {
   const mobileInputRef = useRef({ x: 0, y: 0 });
+  const mobileJumpRef = useRef(false);
 
   const [timeLeft, setTimeLeft] =
     useState(ROUND_TIME);
@@ -2206,6 +2255,7 @@ export function BomBomArena3D({
           playerId={playerId}
           isHost={isHost}
           mobileInputRef={mobileInputRef}
+          mobileJumpRef={mobileJumpRef}
           onPositionChange={(position, rotationY) => {
             if (!roomCode) return;
 
