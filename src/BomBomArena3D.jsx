@@ -44,6 +44,9 @@ const MODEL_PATHS = {
   andy: "/models/character-male-b-colored.glb",
   kevin: "/models/character-male-c-colored.glb",
   sherina: "/models/character-female-b-colored.glb",
+  maled: "/models/character-male-d-colored.glb",
+  malee: "/models/character-male-e-colored.glb",
+  femalec: "/models/character-female-c-colored.glb",
 };
 
 const SPAWNS = [
@@ -350,6 +353,7 @@ function LocalPlayer({
   characterId,
   alive,
   onPositionChange,
+  mobileInputRef,
 }) {
   const keys = useRef({
     forward: false,
@@ -472,6 +476,12 @@ function LocalPlayer({
     if (keys.current.backward) z += 1;
     if (keys.current.left) x -= 1;
     if (keys.current.right) x += 1;
+
+    // Mobile virtual joystick.
+    if (mobileInputRef?.current) {
+      x += mobileInputRef.current.x || 0;
+      z += mobileInputRef.current.y || 0;
+    }
 
     const direction = new THREE.Vector3(x, 0, z);
     const isMoving = direction.lengthSq() > 0;
@@ -1422,6 +1432,7 @@ function ArenaScene({
   playerId,
   onPositionChange,
   isHost,
+  mobileInputRef,
 }) {
   const playerRef = useRef();
 
@@ -1584,6 +1595,7 @@ function ArenaScene({
         onPositionChange={
           onPositionChange
         }
+        mobileInputRef={mobileInputRef}
       />
 
       {!bombFlying && (
@@ -1613,6 +1625,140 @@ function ArenaScene({
 }
 
 /* =========================
+   MOBILE VIRTUAL JOYSTICK
+========================= */
+
+function VirtualJoystick({ inputRef, disabled }) {
+  const activePointer = useRef(null);
+  const baseRef = useRef(null);
+  const RADIUS = 52;
+
+  const reset = () => {
+    if (inputRef?.current) {
+      inputRef.current.x = 0;
+      inputRef.current.y = 0;
+    }
+    activePointer.current = null;
+  };
+
+  const updateFromPointer = (event) => {
+    if (
+      activePointer.current === null ||
+      activePointer.current !== event.pointerId ||
+      !baseRef.current ||
+      disabled
+    ) {
+      return;
+    }
+
+    const rect = baseRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    let dx = event.clientX - centerX;
+    let dy = event.clientY - centerY;
+
+    const distance = Math.hypot(dx, dy);
+    if (distance > RADIUS) {
+      const scale = RADIUS / distance;
+      dx *= scale;
+      dy *= scale;
+    }
+
+    if (inputRef?.current) {
+      inputRef.current.x = dx / RADIUS;
+      inputRef.current.y = dy / RADIUS;
+    }
+
+    const knob = baseRef.current.querySelector(
+      '[data-joystick-knob="true"]'
+    );
+
+    if (knob) {
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+  };
+
+  const handlePointerDown = (event) => {
+    if (disabled) return;
+
+    event.preventDefault();
+    activePointer.current = event.pointerId;
+
+    try {
+      baseRef.current?.setPointerCapture(event.pointerId);
+    } catch {}
+
+    updateFromPointer(event);
+  };
+
+  const handlePointerMove = (event) => {
+    event.preventDefault();
+    updateFromPointer(event);
+  };
+
+  const handlePointerUp = (event) => {
+    event.preventDefault();
+
+    try {
+      baseRef.current?.releasePointerCapture(event.pointerId);
+    } catch {}
+
+    reset();
+
+    const knob = baseRef.current?.querySelector(
+      '[data-joystick-knob="true"]'
+    );
+
+    if (knob) {
+      knob.style.transform = 'translate(0px, 0px)';
+    }
+  };
+
+  useEffect(() => reset, []);
+
+  return (
+    <div
+      ref={baseRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onLostPointerCapture={handlePointerUp}
+      style={{
+        width: 118,
+        height: 118,
+        borderRadius: '50%',
+        background: 'rgba(20,14,10,0.48)',
+        border: '2px solid rgba(245,239,224,0.45)',
+        boxShadow: '0 8px 25px rgba(0,0,0,0.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      <div
+        data-joystick-knob="true"
+        style={{
+          width: 58,
+          height: 58,
+          borderRadius: '50%',
+          background: 'rgba(201,162,39,0.92)',
+          border: '2px solid rgba(245,239,224,0.9)',
+          boxShadow: '0 5px 15px rgba(0,0,0,0.35)',
+          transition: 'transform 0.04s linear',
+          pointerEvents: 'none',
+        }}
+      />
+    </div>
+  );
+}
+
+/* =========================
    MAIN COMPONENT
 ========================= */
 
@@ -1623,6 +1769,8 @@ export function BomBomArena3D({
   playerId,
   roomCode,
 }) {
+  const mobileInputRef = useRef({ x: 0, y: 0 });
+
   const [timeLeft, setTimeLeft] =
     useState(ROUND_TIME);
 
@@ -1767,23 +1915,25 @@ export function BomBomArena3D({
   const isHost =
     game?.hostId === playerId;
 
+  const goToGameHub = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.search = "";
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, []);
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         width: "100vw",
-        height: "100vh",
-        minWidth: 0,
-        minHeight: 0,
-        boxSizing: "border-box",
-        margin: 0,
-        padding: 0,
+        height: "100dvh",
         background: "#1a1310",
-        border: `2px solid ${GOLD}`,
+        border: "none",
         borderRadius: 0,
         overflow: "hidden",
-        zIndex: 9999,
+        touchAction: "none",
       }}
     >
       <div
@@ -2001,37 +2151,24 @@ export function BomBomArena3D({
                 bertahan di arena.
               </div>
 
-              <div
+              <button
+                onClick={goToGameHub}
                 style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: 12,
-                  marginTop: 28,
-                  flexWrap: "wrap",
+                  marginTop: 24,
+                  padding: "12px 22px",
+                  borderRadius: 12,
+                  border: `1px solid ${GOLD}`,
+                  background: GOLD,
+                  color: "#17110e",
+                  fontSize: 15,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  minWidth: 210,
+                  touchAction: "manipulation",
                 }}
               >
-                <button
-                  onClick={() => {
-                    window.location.href =
-                      window.location.origin + "/";
-                  }}
-                  style={{
-                    padding: "12px 18px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: GOLD,
-                    color: "#17110e",
-                    fontWeight: 900,
-                    fontSize: 14,
-                    cursor: "pointer",
-                    minWidth: 150,
-                  }}
-                >
-                  🏠 KEMBALI KE GAME HUB
-                </button>
-
-                
-              </div>
+                ← Kembali ke Game Hub
+              </button>
             </div>
           </div>
         )}
@@ -2050,6 +2187,7 @@ export function BomBomArena3D({
           game={game}
           playerId={playerId}
           isHost={isHost}
+          mobileInputRef={mobileInputRef}
           onPositionChange={(position, rotationY) => {
             if (!roomCode) return;
 
@@ -2083,6 +2221,37 @@ export function BomBomArena3D({
         />
       </Canvas>
 
+      <style>{`
+        .bom-mobile-joystick {
+          display: none;
+        }
+
+        @media (pointer: coarse) {
+          .bom-mobile-joystick {
+            display: block;
+          }
+
+          .bom-pc-controls-hint {
+            display: none;
+          }
+        }
+      `}</style>
+
+      <div
+        className="bom-mobile-joystick"
+        style={{
+          position: "absolute",
+          left: 18,
+          bottom: 34,
+          zIndex: 30,
+        }}
+      >
+        <VirtualJoystick
+          inputRef={mobileInputRef}
+          disabled={!alive}
+        />
+      </div>
+
       <button
         onClick={throwBomb}
         disabled={
@@ -2094,8 +2263,10 @@ export function BomBomArena3D({
           right: 22,
           bottom: 45,
           zIndex: 30,
-          padding: "13px 20px",
-          borderRadius: 13,
+          padding: "15px 22px",
+          minWidth: 125,
+          minHeight: 58,
+          borderRadius: 15,
           border: "none",
           background:
             game?.bombHolderId === playerId
@@ -2124,6 +2295,7 @@ export function BomBomArena3D({
       </button>
 
       <div
+        className="bom-pc-controls-hint"
         style={{
           position: "absolute",
           left: 0,

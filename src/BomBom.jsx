@@ -51,6 +51,24 @@ const CHARACTERS = [
     emoji: "🌷",
     description: "Lincah dan cepat",
   },
+  {
+    id: "maled",
+    name: "Male D",
+    emoji: "🧍",
+    description: "Tangguh dan berani",
+  },
+  {
+    id: "malee",
+    name: "Male E",
+    emoji: "🔥",
+    description: "Berani dan kuat",
+  },
+  {
+    id: "femalec",
+    name: "Female C",
+    emoji: "✨",
+    description: "Lincah dan tenang",
+  },
 ];
 
 function makeRoomCode() {
@@ -102,11 +120,12 @@ function getBotCharacter(index) {
     "andy",
     "kevin",
     "sherina",
+    "maled",
+    "malee",
+    "femalec",
   ];
 
-  return characters[
-    index % characters.length
-  ];
+  return characters[index % characters.length];
 }
 
 function getSpawnPosition(playerNumber) {
