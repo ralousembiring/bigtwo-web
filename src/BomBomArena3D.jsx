@@ -712,12 +712,20 @@ function RemotePlayer({ player }) {
   const [throwing, setThrowing] =
     useState(false);
 
+  const movingUntil = useRef(0);
+  const lastAnimation = useRef("idle");
+
   useEffect(() => {
-    targetPosition.current.set(
-      player.position?.x || 0,
-      player.position?.y || 1,
-      player.position?.z || 0
-    );
+    const nextX = player.position?.x || 0;
+    const nextY = player.position?.y || 1;
+    const nextZ = player.position?.z || 0;
+    const changed =
+      Math.abs(targetPosition.current.x - nextX) > 0.002 ||
+      Math.abs(targetPosition.current.y - nextY) > 0.002 ||
+      Math.abs(targetPosition.current.z - nextZ) > 0.002;
+
+    targetPosition.current.set(nextX, nextY, nextZ);
+    if (changed) movingUntil.current = performance.now() + 260;
 
     if (typeof player.position?.rotationY === "number") {
       targetRotation.current = player.position.rotationY;
@@ -773,26 +781,26 @@ function RemotePlayer({ player }) {
         Math.min(1, delta * 10)
       );
 
-    const distance =
-      before.distanceTo(
-        groupRef.current.position
-      );
+    const isNetworkMoving = performance.now() < movingUntil.current;
+    let nextAnimation = "idle";
 
     if (throwing) {
-      setAnimation("throw");
+      nextAnimation = "throw";
     } else if (
       player.isJumping ||
       player.position?.y > 1.2
     ) {
-      setAnimation("jump");
-    } else if (distance > 0.01) {
-      setAnimation(
+      nextAnimation = "jump";
+    } else if (isNetworkMoving) {
+      nextAnimation =
         player.isRunning || player.isBot
           ? "run"
-          : "walk"
-      );
-    } else {
-      setAnimation("idle");
+          : "walk";
+    }
+
+    if (lastAnimation.current !== nextAnimation) {
+      lastAnimation.current = nextAnimation;
+      setAnimation(nextAnimation);
     }
   });
 
@@ -1793,33 +1801,7 @@ function VirtualJoystick({ inputRef, disabled, onJump }) {
         />
       </div>
 
-      <button
-        type="button"
-        disabled={disabled}
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!disabled) onJump?.();
-        }}
-        style={{
-          width: 78,
-          height: 78,
-          borderRadius: '50%',
-          border: '2px solid rgba(245,239,224,0.9)',
-          background: 'rgba(201,162,39,0.92)',
-          color: '#1a1310',
-          fontSize: 28,
-          fontWeight: 900,
-          boxShadow: '0 8px 22px rgba(0,0,0,0.35)',
-          touchAction: 'none',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          opacity: disabled ? 0.45 : 1,
-        }}
-        aria-label="Lompat"
-      >
-        ↑
-      </button>
+
     </div>
   );
 }
@@ -2299,6 +2281,10 @@ export function BomBomArena3D({
             display: block;
           }
 
+          .bom-mobile-jump {
+            display: block !important;
+          }
+
           .bom-pc-controls-hint {
             display: none;
           }
@@ -2319,6 +2305,34 @@ export function BomBomArena3D({
           disabled={!alive}
         />
       </div>
+
+      <button
+        className="bom-mobile-jump"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          if (alive) mobileJumpRef.current = true;
+        }}
+        disabled={!alive}
+        style={{
+          display: "none",
+          position: "absolute",
+          right: 22,
+          bottom: 115,
+          zIndex: 30,
+          width: 64,
+          height: 64,
+          borderRadius: "50%",
+          border: "2px solid rgba(245,239,224,0.9)",
+          background: GOLD,
+          color: BG,
+          fontSize: 28,
+          fontWeight: 900,
+          touchAction: "none",
+          userSelect: "none",
+        }}
+      >
+        ↑
+      </button>
 
       <button
         onClick={throwBomb}
