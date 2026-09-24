@@ -706,29 +706,29 @@ function RemotePlayer({ player }) {
       : 0
   );
 
-  const [animation, setAnimation] =
-    useState("idle");
-
-  const [throwing, setThrowing] =
-    useState(false);
-
   const movingUntil = useRef(0);
   const lastAnimation = useRef("idle");
+  const [animation, setAnimation] = useState("idle");
+  const [throwing, setThrowing] = useState(false);
 
   useEffect(() => {
     const nextX = player.position?.x || 0;
     const nextY = player.position?.y || 1;
     const nextZ = player.position?.z || 0;
+
     const changed =
       Math.abs(targetPosition.current.x - nextX) > 0.002 ||
       Math.abs(targetPosition.current.y - nextY) > 0.002 ||
       Math.abs(targetPosition.current.z - nextZ) > 0.002;
 
     targetPosition.current.set(nextX, nextY, nextZ);
-    if (changed) movingUntil.current = performance.now() + 260;
 
     if (typeof player.position?.rotationY === "number") {
       targetRotation.current = player.position.rotationY;
+    }
+
+    if (changed) {
+      movingUntil.current = Date.now() + 220;
     }
   }, [
     player.position?.x,
@@ -741,62 +741,28 @@ function RemotePlayer({ player }) {
     if (!player.lastThrowAt) return;
 
     setThrowing(true);
-
-    const timeout = setTimeout(() => {
-      setThrowing(false);
-    }, 650);
-
+    const timeout = setTimeout(() => setThrowing(false), 650);
     return () => clearTimeout(timeout);
   }, [player.lastThrowAt]);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    const before =
-      groupRef.current.position.clone();
+    const smooth = 1 - Math.pow(0.0001, delta);
+    groupRef.current.position.lerp(targetPosition.current, smooth);
 
-    groupRef.current.position.lerp(
-      targetPosition.current,
+    groupRef.current.rotation.y = THREE.MathUtils.lerp(
+      groupRef.current.rotation.y,
+      targetRotation.current,
       Math.min(1, delta * 12)
     );
 
-    // Kalau device pengirim belum mengirim rotationY dengan benar,
-    // arah hadap remote tetap mengikuti arah perpindahannya.
-    const moveDX =
-      groupRef.current.position.x - before.x;
-    const moveDZ =
-      groupRef.current.position.z - before.z;
-
-    if (Math.abs(moveDX) + Math.abs(moveDZ) > 0.0005) {
-      targetRotation.current = Math.atan2(
-        moveDX,
-        moveDZ
-      );
-    }
-
-    groupRef.current.rotation.y =
-      THREE.MathUtils.lerp(
-        groupRef.current.rotation.y,
-        targetRotation.current,
-        Math.min(1, delta * 10)
-      );
-
-    const isNetworkMoving = performance.now() < movingUntil.current;
+    const networkMoving = Date.now() < movingUntil.current;
     let nextAnimation = "idle";
 
-    if (throwing) {
-      nextAnimation = "throw";
-    } else if (
-      player.isJumping ||
-      player.position?.y > 1.2
-    ) {
-      nextAnimation = "jump";
-    } else if (isNetworkMoving) {
-      nextAnimation =
-        player.isRunning || player.isBot
-          ? "run"
-          : "walk";
-    }
+    if (throwing) nextAnimation = "throw";
+    else if (player.isJumping || player.position?.y > 1.2) nextAnimation = "jump";
+    else if (networkMoving) nextAnimation = player.isRunning || player.isBot ? "run" : "walk";
 
     if (lastAnimation.current !== nextAnimation) {
       lastAnimation.current = nextAnimation;
@@ -804,9 +770,7 @@ function RemotePlayer({ player }) {
     }
   });
 
-  if (player.alive === false) {
-    return null;
-  }
+  if (player.alive === false) return null;
 
   return (
     <group
@@ -827,9 +791,7 @@ function RemotePlayer({ player }) {
       <KenneyModel
         modelGroupRef={modelRef}
         animationName={animation}
-        characterId={
-          player.character || "fanzi"
-        }
+        characterId={player.character || "fanzi"}
       />
     </group>
   );
@@ -1466,7 +1428,6 @@ function ArenaScene({
   onPositionChange,
   isHost,
   mobileInputRef,
-  mobileJumpRef,
 }) {
   const playerRef = useRef();
 
@@ -1663,7 +1624,7 @@ function ArenaScene({
    MOBILE VIRTUAL JOYSTICK
 ========================= */
 
-function VirtualJoystick({ inputRef, disabled, onJump }) {
+function VirtualJoystick({ inputRef, disabled }) {
   const activePointer = useRef(null);
   const baseRef = useRef(null);
   const RADIUS = 52;
@@ -1754,54 +1715,41 @@ function VirtualJoystick({ inputRef, disabled, onJump }) {
 
   return (
     <div
+      ref={baseRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onLostPointerCapture={handlePointerUp}
       style={{
+        width: 118,
+        height: 118,
+        borderRadius: '50%',
+        background: 'rgba(20,14,10,0.48)',
+        border: '2px solid rgba(245,239,224,0.45)',
+        boxShadow: '0 8px 25px rgba(0,0,0,0.35)',
         display: 'flex',
-        alignItems: 'flex-end',
-        gap: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
         touchAction: 'none',
         userSelect: 'none',
         WebkitUserSelect: 'none',
+        opacity: disabled ? 0.45 : 1,
       }}
     >
       <div
-        ref={baseRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onLostPointerCapture={handlePointerUp}
+        data-joystick-knob="true"
         style={{
-          width: 118,
-          height: 118,
+          width: 58,
+          height: 58,
           borderRadius: '50%',
-          background: 'rgba(20,14,10,0.48)',
-          border: '2px solid rgba(245,239,224,0.45)',
-          boxShadow: '0 8px 25px rgba(0,0,0,0.35)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          touchAction: 'none',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          opacity: disabled ? 0.45 : 1,
+          background: 'rgba(201,162,39,0.92)',
+          border: '2px solid rgba(245,239,224,0.9)',
+          boxShadow: '0 5px 15px rgba(0,0,0,0.35)',
+          transition: 'transform 0.04s linear',
+          pointerEvents: 'none',
         }}
-      >
-        <div
-          data-joystick-knob="true"
-          style={{
-            width: 58,
-            height: 58,
-            borderRadius: '50%',
-            background: 'rgba(201,162,39,0.92)',
-            border: '2px solid rgba(245,239,224,0.9)',
-            boxShadow: '0 5px 15px rgba(0,0,0,0.35)',
-            transition: 'transform 0.04s linear',
-            pointerEvents: 'none',
-          }}
-        />
-      </div>
-
-
+      />
     </div>
   );
 }
@@ -2248,13 +2196,13 @@ export function BomBomArena3D({
               ),
               {
                 x: Number(
-                  position.x.toFixed(2)
+                  position.x.toFixed(3)
                 ),
                 y: Number(
-                  position.y.toFixed(2)
+                  position.y.toFixed(3)
                 ),
                 z: Number(
-                  position.z.toFixed(2)
+                  position.z.toFixed(3)
                 ),
                 rotationY:
                   typeof rotationY === "number"
@@ -2307,28 +2255,31 @@ export function BomBomArena3D({
       </div>
 
       <button
+        type="button"
         className="bom-mobile-jump"
+        disabled={!alive}
         onPointerDown={(event) => {
           event.preventDefault();
+          event.stopPropagation();
           if (alive) mobileJumpRef.current = true;
         }}
-        disabled={!alive}
         style={{
           display: "none",
           position: "absolute",
-          right: 22,
-          bottom: 115,
+          right: 35,
+          bottom: 118,
           zIndex: 30,
-          width: 64,
-          height: 64,
+          width: 62,
+          height: 62,
           borderRadius: "50%",
           border: "2px solid rgba(245,239,224,0.9)",
           background: GOLD,
-          color: BG,
+          color: "#1a1310",
           fontSize: 28,
           fontWeight: 900,
           touchAction: "none",
           userSelect: "none",
+          WebkitUserSelect: "none",
         }}
       >
         ↑
