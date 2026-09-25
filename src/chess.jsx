@@ -11,7 +11,6 @@ import {
   ref,
   runTransaction,
   set,
-  update,
 } from "firebase/database";
 
 import { db } from "./firebase";
@@ -95,14 +94,11 @@ function normalizeGameState(game) {
     ...game,
     board: normalizeBoard(game.board),
     turn: game.turn || "white",
-    castling:
-      game.castling || initial.castling,
-    enPassant:
-      game.enPassant ?? null,
-    moveHistory:
-      Array.isArray(game.moveHistory)
-        ? game.moveHistory
-        : [],
+    castling: game.castling || initial.castling,
+    enPassant: game.enPassant ?? null,
+    moveHistory: Array.isArray(game.moveHistory)
+      ? game.moveHistory
+      : [],
   };
 }
 
@@ -146,21 +142,13 @@ function getMoveTarget(move) {
       move.toRow ??
       move.to?.row ??
       move.r,
+
     col:
       move.col ??
       move.toCol ??
       move.to?.col ??
       move.c,
   };
-}
-
-function sameSquare(a, b) {
-  return (
-    a &&
-    b &&
-    a.row === b.row &&
-    a.col === b.col
-  );
 }
 
 function moveKey(from, move) {
@@ -188,11 +176,8 @@ function allLegalMovesForColor(state, color) {
         continue;
       }
 
-      const moves = getLegalMoves(
-        state,
-        row,
-        col
-      ) || [];
+      const moves =
+        getLegalMoves(state, row, col) || [];
 
       for (const move of moves) {
         result.push({
@@ -307,9 +292,7 @@ function chooseRandomMove(moves) {
   if (!moves.length) return null;
 
   return moves[
-    Math.floor(
-      Math.random() * moves.length
-    )
+    Math.floor(Math.random() * moves.length)
   ];
 }
 
@@ -351,10 +334,9 @@ function chooseNormalMove(
   const scored = moves.map((item) => {
     const target = getMoveTarget(item.move);
 
-    const captured =
-      target
-        ? state.board?.[target.row]?.[target.col]
-        : null;
+    const captured = target
+      ? state.board?.[target.row]?.[target.col]
+      : null;
 
     const next = simulateMove(
       state,
@@ -365,8 +347,7 @@ function chooseNormalMove(
     let score = 0;
 
     if (captured) {
-      score +=
-        materialValue(captured) * 1.2;
+      score += materialValue(captured) * 1.2;
     }
 
     if (next) {
@@ -407,9 +388,7 @@ function chooseNormalMove(
     Math.min(3, scored.length)
   );
 
-  return chooseRandomMove(
-    top
-  )?.item;
+  return chooseRandomMove(top)?.item;
 }
 
 function chooseHardMove(
@@ -440,11 +419,10 @@ function chooseHardMove(
       return item;
     }
 
-    let score =
-      evaluateBoard(
-        next,
-        botColor
-      );
+    let score = evaluateBoard(
+      next,
+      botColor
+    );
 
     const opponentColor =
       botColor === "white"
@@ -478,8 +456,9 @@ function chooseHardMove(
       );
     }
 
-    const target =
-      getMoveTarget(item.move);
+    const target = getMoveTarget(
+      item.move
+    );
 
     if (target) {
       const captured =
@@ -505,27 +484,21 @@ function chooseHardMove(
   );
 }
 
-export  function Chess() {
-  const playerIdRef =
-    useRef(getPlayerId());
+function Chess() {
+  const playerIdRef = useRef(
+    getPlayerId()
+  );
 
-  const playerId =
-    playerIdRef.current;
+  const playerId = playerIdRef.current;
 
-  const botTimerRef =
-    useRef(null);
+  const botTimerRef = useRef(null);
+  const botBusyRef = useRef(false);
 
-  const botBusyRef =
-    useRef(false);
-
-  const [mode, setMode] =
-    useState(
-      window.location.search.includes(
-        "room="
-      )
-        ? "pvp"
-        : "select"
-    );
+  const [mode, setMode] = useState(
+    window.location.search.includes("room=")
+      ? "pvp"
+      : "select"
+  );
 
   const [botLevel, setBotLevel] =
     useState("normal");
@@ -546,9 +519,7 @@ export  function Chess() {
           window.location.search
         );
 
-      return (
-        params.get("room") || ""
-      );
+      return params.get("room") || "";
     });
 
   const [roomData, setRoomData] =
@@ -574,16 +545,13 @@ export  function Chess() {
   const [botThinking, setBotThinking] =
     useState(false);
 
-  const isBotMode =
-    mode === "bot";
-
-  const isPvP =
-    mode === "pvp";
+  const isBotMode = mode === "bot";
+  const isPvP = mode === "pvp";
 
   /*
-   * ================================
+   * ========================================
    * FIREBASE ROOM LISTENER
-   * ================================
+   * ========================================
    */
 
   useEffect(() => {
@@ -599,8 +567,7 @@ export  function Chess() {
     const unsubscribe = onValue(
       roomRef,
       (snapshot) => {
-        const data =
-          snapshot.val();
+        const data = snapshot.val();
 
         if (!data) {
           setRoomData(null);
@@ -612,9 +579,7 @@ export  function Chess() {
 
         if (data.game) {
           setGameState(
-            normalizeGameState(
-              data.game
-            )
+            normalizeGameState(data.game)
           );
         } else {
           setGameState(null);
@@ -622,14 +587,13 @@ export  function Chess() {
       }
     );
 
-    return () =>
-      unsubscribe();
+    return () => unsubscribe();
   }, [roomId, isPvP]);
 
   /*
-   * ================================
+   * ========================================
    * URL
-   * ================================
+   * ========================================
    */
 
   function openRoomUrl(code) {
@@ -661,9 +625,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * CREATE ROOM
-   * ================================
+   * ========================================
    */
 
   async function createRoom() {
@@ -674,9 +638,6 @@ export  function Chess() {
       const code =
         generateRoomCode();
 
-      const initialGame =
-        createInitialState();
-
       await set(
         ref(
           db,
@@ -685,17 +646,18 @@ export  function Chess() {
         {
           createdAt: Date.now(),
 
+          hostId: playerId,
+
           players: {
-            white: {
+            [playerId]: {
               id: playerId,
               name: "Player 1",
+              color: null,
+              joinedAt: Date.now(),
             },
-            black: null,
           },
 
           game: null,
-
-          hostId: playerId,
         }
       );
 
@@ -712,9 +674,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * JOIN ROOM
-   * ================================
+   * ========================================
    */
 
   async function joinRoom() {
@@ -727,7 +689,6 @@ export  function Chess() {
       setMessage(
         "Masukkan kode room."
       );
-
       return;
     }
 
@@ -740,57 +701,72 @@ export  function Chess() {
         `chessRooms/${code}`
       );
 
-      const snapshot =
-        await get(roomRef);
-
-      if (!snapshot.exists()) {
-        setMessage(
-          "Room tidak ditemukan."
-        );
-
-        return;
-      }
-
-      const data =
-        snapshot.val();
-
-      const players =
-        data.players || {};
-
-      if (
-        players.white?.id ===
-          playerId ||
-        players.black?.id ===
-          playerId
-      ) {
-        openRoomUrl(code);
-        return;
-      }
-
-      if (!players.white) {
-        await update(
+      const result =
+        await runTransaction(
           roomRef,
-          {
-            "players/white": {
-              id: playerId,
-              name: "Player",
-            },
+          (current) => {
+            if (!current) {
+              return;
+            }
+
+            const players =
+              current.players || {};
+
+            if (
+              players[playerId]
+            ) {
+              return current;
+            }
+
+            const playerList =
+              Object.values(players);
+
+            if (playerList.length >= 2) {
+              return;
+            }
+
+            return {
+              ...current,
+
+              players: {
+                ...players,
+
+                [playerId]: {
+                  id: playerId,
+                  name: "Player 2",
+                  color: null,
+                  joinedAt: Date.now(),
+                },
+              },
+            };
           }
         );
-      } else if (!players.black) {
-        await update(
-          roomRef,
-          {
-            "players/black": {
-              id: playerId,
-              name: "Player",
-            },
+
+      if (!result.committed) {
+        const latest =
+          await get(roomRef);
+
+        if (!latest.exists()) {
+          setMessage(
+            "Room tidak ditemukan."
+          );
+        } else {
+          const data =
+            latest.val();
+
+          const players =
+            data.players || {};
+
+          if (
+            players[playerId]
+          ) {
+            openRoomUrl(code);
+          } else {
+            setMessage(
+              "Room sudah penuh."
+            );
           }
-        );
-      } else {
-        setMessage(
-          "Room sudah penuh."
-        );
+        }
 
         return;
       }
@@ -808,62 +784,186 @@ export  function Chess() {
   }
 
   /*
-   * ================================
-   * SEAT
-   * ================================
+   * ========================================
+   * MY COLOR
+   * ========================================
    */
+
+  const myPlayer = useMemo(() => {
+    if (isBotMode) {
+      return null;
+    }
+
+    return (
+      roomData?.players?.[playerId] ||
+      null
+    );
+  }, [
+    roomData,
+    playerId,
+    isBotMode,
+  ]);
 
   const myColor = useMemo(() => {
     if (isBotMode) {
       return playerColor;
     }
 
-    if (!roomData?.players) {
-      return null;
-    }
-
-    if (
-      roomData.players.white?.id ===
-      playerId
-    ) {
-      return "white";
-    }
-
-    if (
-      roomData.players.black?.id ===
-      playerId
-    ) {
-      return "black";
-    }
-
-    return null;
+    return myPlayer?.color || null;
   }, [
-    roomData,
-    playerId,
+    myPlayer,
     isBotMode,
     playerColor,
   ]);
 
   /*
-   * ================================
+   * ========================================
+   * CHOOSE PVP COLOR
+   * ========================================
+   */
+
+  async function choosePvPColor(color) {
+    if (!roomId) return;
+    if (!roomData) return;
+    if (gameState) return;
+
+    const roomRef = ref(
+      db,
+      `chessRooms/${roomId}`
+    );
+
+    let selectionError = "";
+
+    const result =
+      await runTransaction(
+        roomRef,
+        (current) => {
+          if (!current) {
+            selectionError =
+              "Room tidak ditemukan.";
+            return;
+          }
+
+          const players =
+            current.players || {};
+
+          if (!players[playerId]) {
+            selectionError =
+              "Kamu tidak terdaftar di room.";
+            return;
+          }
+
+          const currentColor =
+            players[playerId].color ||
+            null;
+
+          /*
+           * Kalau klik warna yang sama,
+           * tidak perlu melakukan apa-apa.
+           */
+          if (
+            currentColor === color
+          ) {
+            return current;
+          }
+
+          /*
+           * Cek apakah warna sedang
+           * dipakai player lain.
+           */
+          for (const [
+            id,
+            player,
+          ] of Object.entries(players)) {
+            if (
+              id !== playerId &&
+              player?.color === color
+            ) {
+              selectionError =
+                color === "white"
+                  ? "Bidak Putih sudah dipilih player lain."
+                  : "Bidak Hitam sudah dipilih player lain.";
+
+              return;
+            }
+          }
+
+          return {
+            ...current,
+
+            players: {
+              ...players,
+
+              [playerId]: {
+                ...players[playerId],
+                color,
+              },
+            },
+          };
+        }
+      );
+
+    if (
+      !result.committed &&
+      selectionError
+    ) {
+      setMessage(selectionError);
+      return;
+    }
+
+    setMessage("");
+  }
+
+  /*
+   * ========================================
    * START PVP GAME
-   * ================================
+   * ========================================
    */
 
   async function startPvPGame() {
     if (!roomId) return;
 
+    if (
+      roomData?.hostId !== playerId
+    ) {
+      setMessage(
+        "Hanya host yang bisa memulai game."
+      );
+      return;
+    }
+
     const players =
       roomData?.players || {};
 
-    if (
-      !players.white ||
-      !players.black
-    ) {
+    const playerList =
+      Object.values(players);
+
+    if (playerList.length !== 2) {
       setMessage(
         "Menunggu 2 pemain."
       );
+      return;
+    }
 
+    const whitePlayer =
+      playerList.find(
+        (player) =>
+          player?.color === "white"
+      );
+
+    const blackPlayer =
+      playerList.find(
+        (player) =>
+          player?.color === "black"
+      );
+
+    if (
+      !whitePlayer ||
+      !blackPlayer
+    ) {
+      setMessage(
+        "Kedua pemain harus memilih warna terlebih dahulu."
+      );
       return;
     }
 
@@ -877,12 +977,16 @@ export  function Chess() {
       ),
       initial
     );
+
+    setSelected(null);
+    setPendingPromotion(null);
+    setMessage("");
   }
 
   /*
-   * ================================
+   * ========================================
    * START BOT
-   * ================================
+   * ========================================
    */
 
   function startBotGame() {
@@ -890,13 +994,9 @@ export  function Chess() {
       createInitialState();
 
     setGameState(initial);
-
     setSelected(null);
-
     setPendingPromotion(null);
-
     setMessage("");
-
     setMode("bot");
   }
 
@@ -906,23 +1006,16 @@ export  function Chess() {
         botTimerRef.current
       );
 
-      botTimerRef.current =
-        null;
+      botTimerRef.current = null;
     }
 
-    botBusyRef.current =
-      false;
+    botBusyRef.current = false;
 
     setBotThinking(false);
-
     setGameState(null);
-
     setSelected(null);
-
     setPendingPromotion(null);
-
     setRoomData(null);
-
     setRoomId("");
 
     clearRoomUrl();
@@ -931,9 +1024,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * STATUS
-   * ================================
+   * ========================================
    */
 
   const status = useMemo(() => {
@@ -966,12 +1059,10 @@ export  function Chess() {
           : "Hitam";
 
       if (isBotMode) {
-        return (
-          status.winner ===
+        return status.winner ===
           playerColor
-            ? `♛ SKAKMAT! Kamu menang`
-            : `♛ SKAKMAT! Bot menang`
-        );
+          ? "♛ SKAKMAT! Kamu menang"
+          : "♛ SKAKMAT! Bot menang";
       }
 
       return `♛ SKAKMAT! ${winner} menang`;
@@ -1009,9 +1100,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * VALID MOVES
-   * ================================
+   * ========================================
    */
 
   const validMoves = useMemo(() => {
@@ -1023,6 +1114,7 @@ export  function Chess() {
     }
 
     if (
+      !myColor ||
       gameState.turn !== myColor
     ) {
       return [];
@@ -1068,9 +1160,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * EXECUTE MOVE
-   * ================================
+   * ========================================
    */
 
   async function executeMove(
@@ -1081,14 +1173,13 @@ export  function Chess() {
     if (!gameState) return;
 
     if (
+      !myColor ||
       gameState.turn !== myColor
     ) {
       return;
     }
 
-    if (
-      status.gameOver
-    ) {
+    if (status.gameOver) {
       return;
     }
 
@@ -1098,9 +1189,7 @@ export  function Chess() {
 
     if (isBotMode) {
       const current =
-        cloneState(
-          gameState
-        );
+        cloneState(gameState);
 
       const next =
         simulateMove(
@@ -1114,14 +1203,11 @@ export  function Chess() {
         setMessage(
           "Langkah tidak valid."
         );
-
         return;
       }
 
       setGameState(next);
-
       setSelected(null);
-
       setPendingPromotion(null);
 
       return;
@@ -1133,14 +1219,12 @@ export  function Chess() {
 
     if (!roomId) return;
 
-    const gameRef =
-      ref(
-        db,
-        `chessRooms/${roomId}/game`
-      );
+    const gameRef = ref(
+      db,
+      `chessRooms/${roomId}/game`
+    );
 
-    let transactionError =
-      "";
+    let transactionError = "";
 
     const result =
       await runTransaction(
@@ -1149,7 +1233,6 @@ export  function Chess() {
           if (!current) {
             transactionError =
               "Game belum dimulai.";
-
             return;
           }
 
@@ -1188,7 +1271,6 @@ export  function Chess() {
           if (!selectedMove) {
             transactionError =
               "Langkah tidak valid.";
-
             return;
           }
 
@@ -1213,14 +1295,13 @@ export  function Chess() {
     }
 
     setSelected(null);
-
     setPendingPromotion(null);
   }
 
   /*
-   * ================================
+   * ========================================
    * SQUARE CLICK
-   * ================================
+   * ========================================
    */
 
   function handleSquareClick(
@@ -1230,6 +1311,10 @@ export  function Chess() {
     if (!gameState) return;
 
     if (status.gameOver) {
+      return;
+    }
+
+    if (!myColor) {
       return;
     }
 
@@ -1319,9 +1404,7 @@ export  function Chess() {
       ]?.[selected.col];
 
     const type =
-      pieceType(
-        movingPiece
-      );
+      pieceType(movingPiece);
 
     const isPromotion =
       type === "pawn" &&
@@ -1344,9 +1427,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * PROMOTION
-   * ================================
+   * ========================================
    */
 
   function choosePromotion(
@@ -1364,9 +1447,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * BOT TURN
-   * ================================
+   * ========================================
    */
 
   useEffect(() => {
@@ -1393,7 +1476,6 @@ export  function Chess() {
     }
 
     botBusyRef.current = true;
-
     setBotThinking(true);
 
     const delay =
@@ -1407,9 +1489,7 @@ export  function Chess() {
       setTimeout(() => {
         try {
           const current =
-            cloneState(
-              gameState
-            );
+            cloneState(gameState);
 
           const moves =
             allLegalMovesForColor(
@@ -1480,8 +1560,10 @@ export  function Chess() {
             if (
               type === "pawn" &&
               target &&
-              (target.row === 0 ||
-                target.row === 7)
+              (
+                target.row === 0 ||
+                target.row === 7
+              )
             ) {
               promotion = "queen";
             }
@@ -1504,9 +1586,7 @@ export  function Chess() {
             error
           );
         } finally {
-          botBusyRef.current =
-            false;
-
+          botBusyRef.current = false;
           setBotThinking(false);
         }
       }, delay);
@@ -1520,8 +1600,7 @@ export  function Chess() {
         );
       }
 
-      botTimerRef.current =
-        null;
+      botTimerRef.current = null;
     };
   }, [
     isBotMode,
@@ -1532,9 +1611,9 @@ export  function Chess() {
   ]);
 
   /*
-   * ================================
+   * ========================================
    * RESET BOT GAME
-   * ================================
+   * ========================================
    */
 
   function resetBotGame() {
@@ -1546,8 +1625,7 @@ export  function Chess() {
       );
     }
 
-    botBusyRef.current =
-      false;
+    botBusyRef.current = false;
 
     setBotThinking(false);
 
@@ -1556,14 +1634,13 @@ export  function Chess() {
     );
 
     setSelected(null);
-
     setPendingPromotion(null);
   }
 
   /*
-   * ================================
+   * ========================================
    * RESET PVP GAME
-   * ================================
+   * ========================================
    */
 
   async function resetPvPGame() {
@@ -1590,14 +1667,13 @@ export  function Chess() {
     );
 
     setSelected(null);
-
     setPendingPromotion(null);
   }
 
   /*
-   * ================================
+   * ========================================
    * CHECKED KING
-   * ================================
+   * ========================================
    */
 
   const checkedKing =
@@ -1626,14 +1702,12 @@ export  function Chess() {
     ]);
 
   /*
-   * ================================
+   * ========================================
    * MODE SELECT
-   * ================================
+   * ========================================
    */
 
-  if (
-    mode === "select"
-  ) {
+  if (mode === "select") {
     return (
       <Page>
         <Panel maxWidth={500}>
@@ -1743,10 +1817,7 @@ export  function Chess() {
               {Object.entries(
                 BOT_LEVELS
               ).map(
-                ([
-                  key,
-                  value,
-                ]) => (
+                ([key, value]) => (
                   <button
                     key={key}
                     onClick={() =>
@@ -1757,13 +1828,11 @@ export  function Chess() {
                     style={{
                       ...smallChoice,
                       border:
-                        botLevel ===
-                        key
+                        botLevel === key
                           ? `2px solid ${GOLD}`
                           : "1px solid rgba(201,162,39,0.25)",
                       background:
-                        botLevel ===
-                        key
+                        botLevel === key
                           ? "rgba(201,162,39,0.16)"
                           : "#14110F",
                     }}
@@ -1773,15 +1842,11 @@ export  function Chess() {
                         fontSize: 20,
                       }}
                     >
-                      {
-                        value.emoji
-                      }
+                      {value.emoji}
                     </div>
 
                     <div>
-                      {
-                        value.name
-                      }
+                      {value.name}
                     </div>
                   </button>
                 )
@@ -1892,9 +1957,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * PVP ROOM SCREEN
-   * ================================
+   * ========================================
    */
 
   if (
@@ -1998,9 +2063,7 @@ export  function Chess() {
               marginTop: 10,
             }}
             onClick={() => {
-              setMode(
-                "select"
-              );
+              setMode("select");
               clearRoomUrl();
             }}
           >
@@ -2012,9 +2075,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * PVP ROOM LOADING
-   * ================================
+   * ========================================
    */
 
   if (
@@ -2056,9 +2119,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * PVP LOBBY
-   * ================================
+   * ========================================
    */
 
   if (
@@ -2070,15 +2133,35 @@ export  function Chess() {
     const players =
       roomData.players || {};
 
+    const playerList =
+      Object.values(players);
+
     const white =
-      players.white;
+      playerList.find(
+        (player) =>
+          player?.color === "white"
+      ) || null;
 
     const black =
-      players.black;
+      playerList.find(
+        (player) =>
+          player?.color === "black"
+      ) || null;
+
+    const opponent =
+      playerList.find(
+        (player) =>
+          player?.id !== playerId
+      ) || null;
 
     const isHost =
       roomData.hostId ===
       playerId;
+
+    const bothPlayersReady =
+      playerList.length === 2 &&
+      !!white &&
+      !!black;
 
     return (
       <Page>
@@ -2126,9 +2209,11 @@ export  function Chess() {
               }
               onClick={() => {
                 clearRoomUrl();
+
                 setRoomData(
                   null
                 );
+
                 setMode(
                   "select"
                 );
@@ -2161,6 +2246,17 @@ export  function Chess() {
 
           <div
             style={{
+              marginTop: 6,
+              fontSize: 12,
+              opacity: 0.7,
+            }}
+          >
+            {playerList.length}/2
+            pemain di room
+          </div>
+
+          <div
+            style={{
               display: "grid",
               gridTemplateColumns:
                 "1fr 1fr",
@@ -2175,6 +2271,21 @@ export  function Chess() {
                 white?.id ===
                 playerId
               }
+              selected={!!white}
+              canChoose={
+                !!myPlayer &&
+                !gameState &&
+                (
+                  !white ||
+                  white.id ===
+                    playerId
+                )
+              }
+              onChoose={() =>
+                choosePvPColor(
+                  "white"
+                )
+              }
             />
 
             <PlayerSeat
@@ -2184,29 +2295,112 @@ export  function Chess() {
                 black?.id ===
                 playerId
               }
+              selected={!!black}
+              canChoose={
+                !!myPlayer &&
+                !gameState &&
+                (
+                  !black ||
+                  black.id ===
+                    playerId
+                )
+              }
+              onChoose={() =>
+                choosePvPColor(
+                  "black"
+                )
+              }
             />
           </div>
 
           <div
             style={{
-              marginTop: 18,
-              padding: 12,
+              marginTop: 14,
+              padding: 14,
               borderRadius: 12,
               background:
                 "rgba(255,255,255,0.04)",
+              border:
+                "1px solid rgba(201,162,39,0.15)",
               fontSize: 12,
-              opacity: 0.75,
+              textAlign: "left",
             }}
           >
-            Bagikan kode{" "}
-            <b
+            <div
               style={{
+                fontWeight: 900,
                 color: GOLD,
+                marginBottom: 6,
               }}
             >
-              {roomId}
-            </b>{" "}
-            kepada temanmu.
+              👥 Pemain
+            </div>
+
+            <div>
+              Kamu:{" "}
+              <b>
+                {myPlayer?.name ||
+                  "Belum masuk"}
+              </b>
+              {" • "}
+              {myColor
+                ? myColor ===
+                  "white"
+                  ? "⚪ Putih"
+                  : "⚫ Hitam"
+                : "Belum memilih warna"}
+            </div>
+
+            <div
+              style={{
+                marginTop: 5,
+                opacity: 0.7,
+              }}
+            >
+              Lawan:{" "}
+              <b>
+                {opponent
+                  ? opponent.name ||
+                    "Player"
+                  : "Menunggu pemain..."}
+              </b>
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: 14,
+              padding: 12,
+              borderRadius: 12,
+              background:
+                "rgba(201,162,39,0.08)",
+              fontSize: 12,
+            }}
+          >
+            {!myColor ? (
+              <>
+                ⚪ Pilih <b>Putih</b>{" "}
+                atau ⚫ pilih{" "}
+                <b>Hitam</b> untuk
+                menentukan bidakmu.
+              </>
+            ) : playerList.length < 2 ? (
+              <>
+                ⏳ Menunggu player
+                kedua masuk...
+              </>
+            ) : bothPlayersReady ? (
+              <>
+                ✅ Kedua warna sudah
+                dipilih. Menunggu host
+                memulai game.
+              </>
+            ) : (
+              <>
+                ⏳ Menunggu lawan
+                memilih warna...
+              </>
+            )}
           </div>
 
           {isHost ? (
@@ -2214,10 +2408,13 @@ export  function Chess() {
               style={{
                 ...primaryButton,
                 marginTop: 15,
+                opacity:
+                  bothPlayersReady
+                    ? 1
+                    : 0.5,
               }}
               disabled={
-                !white ||
-                !black
+                !bothPlayersReady
               }
               onClick={
                 startPvPGame
@@ -2236,7 +2433,7 @@ export  function Chess() {
                 fontSize: 12,
               }}
             >
-              ⏳ Menunggu host
+              ⏳ Menunggu Host
               memulai game...
             </div>
           )}
@@ -2252,9 +2449,9 @@ export  function Chess() {
   }
 
   /*
-   * ================================
+   * ========================================
    * GAME
-   * ================================
+   * ========================================
    */
 
   if (!gameState) {
@@ -2390,9 +2587,7 @@ export  function Chess() {
               displayCols.map(
                 (col) => {
                   const piece =
-                    board?.[row]?.[
-                      col
-                    ];
+                    board?.[row]?.[col];
 
                   const selectedHere =
                     selected?.row ===
@@ -2536,8 +2731,7 @@ export  function Chess() {
                               "none",
                           }}
                         >
-                          {8 -
-                            row}
+                          {8 - row}
                         </span>
                       )}
 
@@ -2896,6 +3090,9 @@ function PlayerSeat({
   color,
   player,
   mine,
+  selected,
+  canChoose,
+  onChoose,
 }) {
   const isWhite =
     color === "white";
@@ -2910,6 +3107,8 @@ function PlayerSeat({
         border:
           mine
             ? `2px solid ${GOLD}`
+            : selected
+            ? "2px solid rgba(201,162,39,0.5)"
             : "1px solid rgba(201,162,39,0.2)",
       }}
     >
@@ -2958,6 +3157,36 @@ function PlayerSeat({
         >
           KAMU
         </div>
+      )}
+
+      {canChoose && (
+        <button
+          onClick={onChoose}
+          style={{
+            marginTop: 10,
+            width: "100%",
+            minHeight: 36,
+            borderRadius: 9,
+            border:
+              `1px solid ${GOLD}`,
+            background:
+              player?.color ===
+              color
+                ? "rgba(201,162,39,0.2)"
+                : "#14110F",
+            color: CREAM,
+            fontSize: 11,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          {mine
+            ? player?.color ===
+              color
+              ? "✓ Dipilih"
+              : `Pilih ${isWhite ? "Putih" : "Hitam"}`
+            : `Pilih ${isWhite ? "Putih" : "Hitam"}`}
+        </button>
       )}
     </div>
   );
@@ -3067,3 +3296,6 @@ const smallChoice = {
   cursor: "pointer",
   padding: 8,
 };
+
+export { Chess };
+export default Chess;
