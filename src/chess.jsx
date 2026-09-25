@@ -2770,12 +2770,7 @@ export function Chess() {
             di room
           </div>
 
-          /*
-            ======================
-            WARNA
-            ======================
-          */
-
+         
           <div
             style={{
               display: "grid",
@@ -2841,11 +2836,7 @@ export function Chess() {
             />
           </div>
 
-          /*
-            ======================
-            PLAYER INFO
-            ======================
-          */
+      
 
           <div
             style={{
@@ -2944,11 +2935,7 @@ export function Chess() {
             )}
           </div>
 
-          /*
-            ======================
-            STATUS
-            ======================
-          */
+         
 
           {!bothPlayers && (
             <div
@@ -3009,11 +2996,7 @@ export function Chess() {
             </Message>
           )}
 
-          /*
-            ======================
-            START BUTTON
-            ======================
-          */
+          
 
           {isHost && (
             <button
@@ -3476,11 +3459,7 @@ export function Chess() {
         </div>
       </div>
 
-      /*
-        ======================
-        PROMOTION MODAL
-        ======================
-      */
+     
 
       {pendingPromotion && (
         <div
