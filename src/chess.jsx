@@ -680,109 +680,167 @@ function Chess() {
    */
 
   async function joinRoom() {
-    const code =
-      roomInput
-        .trim()
-        .toUpperCase();
+  const code =
+    roomInput
+      .trim()
+      .toUpperCase();
 
-    if (!code) {
+  if (!code) {
+    setMessage(
+      "Masukkan kode room."
+    );
+    return;
+  }
+
+  setLoading(true);
+  setMessage("");
+
+  try {
+    const roomRef = ref(
+      db,
+      `chessRooms/${code}`
+    );
+
+    // Pastikan room memang ada
+    const roomSnapshot =
+      await get(roomRef);
+
+    if (!roomSnapshot.exists()) {
       setMessage(
-        "Masukkan kode room."
+        "Room tidak ditemukan."
       );
       return;
     }
 
-    setLoading(true);
-    setMessage("");
+    const roomDataNow =
+      roomSnapshot.val();
 
-    try {
-      const roomRef = ref(
-        db,
-        `chessRooms/${code}`
+    const existingPlayers =
+      roomDataNow.players || {};
+
+    // Kalau player ini sudah ada di room,
+    // langsung masuk lagi.
+    if (
+      existingPlayers[playerId]
+    ) {
+      openRoomUrl(code);
+      return;
+    }
+
+    // Maksimal 2 pemain.
+    if (
+      Object.keys(existingPlayers).length >= 2
+    ) {
+      setMessage(
+        "Room sudah penuh."
       );
+      return;
+    }
 
-      const result =
-        await runTransaction(
-          roomRef,
-          (current) => {
-            if (!current) {
-              return;
-            }
+    /*
+     * Transaction hanya pada node players.
+     * Jadi lebih aman kalau ada 2 orang
+     * mencoba join hampir bersamaan.
+     */
+    const playersRef = ref(
+      db,
+      `chessRooms/${code}/players`
+    );
 
-            const players =
-              current.players || {};
-
-            if (
-              players[playerId]
-            ) {
-              return current;
-            }
-
-            const playerList =
-              Object.values(players);
-
-            if (playerList.length >= 2) {
-              return;
-            }
-
-            return {
-              ...current,
-
-              players: {
-                ...players,
-
-                [playerId]: {
-                  id: playerId,
-                  name: "Player 2",
-                  color: null,
-                  joinedAt: Date.now(),
-                },
-              },
-            };
-          }
-        );
-
-      if (!result.committed) {
-        const latest =
-          await get(roomRef);
-
-        if (!latest.exists()) {
-          setMessage(
-            "Room tidak ditemukan."
-          );
-        } else {
-          const data =
-            latest.val();
-
+    const result =
+      await runTransaction(
+        playersRef,
+        (currentPlayers) => {
           const players =
-            data.players || {};
+            currentPlayers || {};
 
+          // Player ternyata sudah masuk
           if (
             players[playerId]
           ) {
-            openRoomUrl(code);
-          } else {
-            setMessage(
-              "Room sudah penuh."
-            );
+            return players;
           }
+
+          // Sudah ada 2 player
+          if (
+            Object.keys(players).length >= 2
+          ) {
+            return;
+          }
+
+          return {
+            ...players,
+
+            [playerId]: {
+              id: playerId,
+              name: "Player 2",
+              color: null,
+              joinedAt: Date.now(),
+            },
+          };
         }
-
-        return;
-      }
-
-      openRoomUrl(code);
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        "Gagal bergabung ke room."
       );
-    } finally {
-      setLoading(false);
-    }
-  }
 
+    if (result.committed) {
+      openRoomUrl(code);
+      return;
+    }
+
+    /*
+     * Kalau transaction batal, cek kondisi
+     * room terbaru sebelum memberi pesan.
+     */
+    const latestSnapshot =
+      await get(roomRef);
+
+    if (!latestSnapshot.exists()) {
+      setMessage(
+        "Room tidak ditemukan."
+      );
+      return;
+    }
+
+    const latestData =
+      latestSnapshot.val();
+
+    const latestPlayers =
+      latestData.players || {};
+
+    // Ternyata kita sudah berhasil masuk
+    if (
+      latestPlayers[playerId]
+    ) {
+      openRoomUrl(code);
+      return;
+    }
+
+    // Benar-benar penuh
+    if (
+      Object.keys(latestPlayers).length >= 2
+    ) {
+      setMessage(
+        "Room sudah penuh."
+      );
+      return;
+    }
+
+    // Masih ada slot, berarti bukan karena penuh.
+    setMessage(
+      "Gagal bergabung ke room. Coba tekan Gabung Room lagi."
+    );
+  } catch (error) {
+    console.error(
+      "Join room error:",
+      error
+    );
+
+    setMessage(
+      "Gagal bergabung ke room."
+    );
+  } finally {
+    setLoading(false);
+  }
+}
   /*
    * ========================================
    * MY COLOR
