@@ -685,148 +685,26 @@ export function BigTwoGame() {
   const wood = "linear-gradient(180deg, #6B4226, #3E2519)";
 
   // ---------- room join screen ----------
-  // ---------- room join screen ----------
-if (!joined) {
-  return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "#1a1310",
-        color: cream,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px",
-        boxSizing: "border-box",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "505px",
-          background: "#26211d",
-          border: "1px solid rgba(201, 162, 39, 0.45)",
-          borderRadius: "18px",
-          padding: "32px 28px",
-          boxSizing: "border-box",
-          textAlign: "center",
-          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.18)",
-        }}
-      >
-        {/* JUDUL */}
-        <div
-          style={{
-            color: gold,
-            fontFamily: "Georgia, serif",
-            fontSize: "38px",
-            fontWeight: 700,
-            marginBottom: "12px",
-          }}
-        >
-          ♠ Big Two
+  if (!joined) {
+    return (
+      <div style={{minHeight:"100dvh",background:"#1a1310",color:cream,display:"flex",alignItems:"center",justifyContent:"center",padding:20,boxSizing:"border-box",fontFamily:"system-ui, sans-serif"}}>
+        <div style={{width:"100%",maxWidth:520,background:"linear-gradient(145deg,#2b211b,#201813)",border:"1px solid rgba(201,162,39,0.5)",borderRadius:22,padding:"30px 26px",boxSizing:"border-box",textAlign:"center",boxShadow:"0 18px 50px rgba(0,0,0,0.35)"}}>
+          <div style={{color:gold,fontFamily:"Georgia, serif",fontSize:40,fontWeight:700,marginBottom:6}}>♠ Big Two</div>
+          <div style={{color:cream,opacity:.72,fontSize:14,lineHeight:1.5,maxWidth:390,margin:"0 auto 24px"}}>Masukkan kode room untuk bermain dengan teman, atau kosongkan untuk membuat room baru.</div>
+          <div style={{background:"rgba(0,0,0,0.18)",borderRadius:16,padding:14,marginBottom:14}}>
+            <div style={{color:gold,fontSize:11,fontWeight:800,letterSpacing:1.5,marginBottom:8}}>KODE ROOM</div>
+            <input value={roomInput} onChange={(e)=>setRoomInput(e.target.value.toUpperCase())} placeholder="Contoh: A7K2P9" maxLength={8} style={{width:"100%",height:54,boxSizing:"border-box",padding:"0 16px",borderRadius:11,border:"1px solid rgba(201,162,39,0.75)",background:"#17110d",color:cream,outline:"none",textAlign:"center",fontSize:17,fontWeight:700,letterSpacing:3}} />
+          </div>
+          <button type="button" onClick={()=>enterRoom(roomInput)} style={{width:"100%",height:52,border:"none",borderRadius:11,background:gold,color:"#17100c",fontWeight:800,fontSize:15,cursor:"pointer",boxSizing:"border-box",boxShadow:"0 6px 18px rgba(201,162,39,0.18)"}}>{roomInput.trim()?"Gabung Room":"Buat Room Baru"}</button>
+          <button type="button" onClick={backToGameHub} style={{marginTop:14,width:"100%",height:44,background:"transparent",color:cream,border:"1px solid rgba(245,239,224,0.22)",borderRadius:11,fontSize:13,cursor:"pointer"}}>← Kembali ke Game Hub</button>
         </div>
-
-        {/* DESKRIPSI */}
-        <div
-          style={{
-            color: cream,
-            opacity: 0.8,
-            fontSize: "15px",
-            lineHeight: 1.5,
-            marginBottom: "24px",
-          }}
-        >
-          Masukkan kode room untuk bermain dengan teman,
-          atau buat room baru.
-        </div>
-
-        {/* INPUT KODE ROOM */}
-        <input
-          value={roomInput}
-          onChange={(e) =>
-            setRoomInput(e.target.value.toUpperCase())
-          }
-          placeholder="KODE ROOM"
-          maxLength={8}
-          style={{
-            width: "100%",
-            height: "56px",
-            boxSizing: "border-box",
-            padding: "0 16px",
-            borderRadius: "10px",
-            border: `1px solid ${gold}`,
-            background: "#1a1310",
-            color: cream,
-            outline: "none",
-            textAlign: "center",
-            fontSize: "17px",
-            letterSpacing: "2px",
-            marginBottom: "14px",
-          }}
-        />
-
-        {/* TOMBOL ROOM */}
-        <button
-          type="button"
-          onClick={() => enterRoom(roomInput)}
-          style={{
-            width: "100%",
-            height: "52px",
-            border: "none",
-            borderRadius: "10px",
-            background: gold,
-            color: "#17100c",
-            fontWeight: 700,
-            fontSize: "16px",
-            cursor: "pointer",
-            boxSizing: "border-box",
-          }}
-        >
-          {roomInput.trim()
-            ? "Gabung Room"
-            : "Buat Room Baru"}
-        </button>
-
-        {/* KEMBALI */}
-        <button
-          type="button"
-          onClick={() => {
-            window.history.pushState(
-              {},
-              "",
-              window.location.pathname
-            );
-
-            window.dispatchEvent(
-              new PopStateEvent("popstate")
-            );
-          }}
-          style={{
-            marginTop: "16px",
-            background: "transparent",
-            color: cream,
-            border: `1px solid ${gold}`,
-            borderRadius: "10px",
-            padding: "11px 18px",
-            fontSize: "14px",
-            cursor: "pointer",
-          }}
-        >
-          ← Kembali ke Game Hub
-        </button>
       </div>
-    </div>
-  );
-}
+    );
+  }
+
   const inLobby = mySeat === null;
   const gameReady = game && game.phase !== "lobby";
-  const seatByRel = (rel) =>
-    mySeat === null ? rel : (rel + mySeat) % 4;
-  function backToGameHub() {
-  window.history.pushState({}, "", window.location.pathname);
-  window.dispatchEvent(new PopStateEvent("popstate"));
-}
+  const seatByRel = (rel) => mySeat === null ? rel : (rel + mySeat) % 4;
 
   function backToGameHub() {
     window.history.pushState({}, "", window.location.pathname);
@@ -834,218 +712,48 @@ if (!joined) {
   }
 
   return (
-    <div
-      className="app-shell"
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        background: "#1a1310",
-        minHeight: "100vh",
-        padding: 16,
-        display: "flex",
-        justifyContent: "center",
-      }}
-    >
+    <div className="app-shell" style={{fontFamily:"system-ui, sans-serif",background:"#1a1310",minHeight:"100vh",padding:"18px 14px 28px",display:"flex",justifyContent:"center",boxSizing:"border-box"}}>
       <style>{responsiveStyles}</style>
-
-      <div
-        className="app-content"
-        style={{
-          width: "100%",
-          maxWidth: 700,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        <h1
-          className="room-title"
-          style={{
-            fontFamily: "Georgia, serif",
-            color: gold,
-            fontSize: 20,
-            margin: 0,
-            textAlign: "center",
-          }}
-        >
-         🃏Big Two — Room {roomId}
-        </h1>
-
-        <div
-          className="room-link"
-          style={{
-            textAlign: "center",
-            color: "#cfcfcf",
-            fontSize: 12,
-          }}
-        >
-          Bagikan link ini ke temanmu: <code>{window.location.href}</code>
+      <div className="app-content" style={{width:"100%",maxWidth:720,display:"flex",flexDirection:"column",gap:12}}>
+        <div style={{background:"linear-gradient(145deg,#2b211b,#211812)",border:"1px solid rgba(201,162,39,0.35)",borderRadius:18,padding:"16px 18px",textAlign:"center",boxShadow:"0 10px 28px rgba(0,0,0,0.22)"}}>
+          <div className="room-title" style={{fontFamily:"Georgia, serif",color:gold,fontSize:22,fontWeight:700}}>🃏 Big Two</div>
+          <div style={{marginTop:4,color:cream,fontSize:13,opacity:.75}}>Room <strong style={{color:gold}}>{roomId}</strong></div>
+          <div className="room-link" style={{marginTop:10,color:"#b9b0a4",fontSize:11,lineHeight:1.45,wordBreak:"break-all"}}>Bagikan link ini ke temanmu:<div style={{marginTop:5,color:cream,opacity:.82,background:"rgba(0,0,0,0.2)",borderRadius:8,padding:"7px 9px"}}>{window.location.href}</div></div>
+          <button type="button" onClick={backToGameHub} style={{marginTop:11,background:"transparent",color:cream,border:"1px solid rgba(245,239,224,0.22)",borderRadius:9,padding:"8px 13px",fontSize:12,cursor:"pointer"}}>← Game Hub</button>
         </div>
 
         {inLobby && (
-          <div
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              borderRadius: 14,
-              padding: 16,
-              color: cream,
-            }}
-          >
-            <input
-              value={nameDraft}
-              onChange={(e) => setNameDraft(e.target.value)}
-              placeholder="Nama kamu"
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #C9A227",
-                marginBottom: 12,
-                width: 200,
-              }}
-            />
-
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              {[0, 1, 2, 3].map((seat) => (
-                <div
-                  key={seat}
-                  style={{
-                    background: "rgba(0,0,0,0.25)",
-                    borderRadius: 10,
-                    padding: 12,
-                    minWidth: 130,
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 12,
-                      opacity: 0.8,
-                      marginBottom: 6,
-                    }}
-                  >
-                    Kursi {seat + 1}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 14,
-                      marginBottom: 8,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {players[seat]?.name || "Kosong (bot)"}
-                  </div>
-
-                  {!players[seat] && (
-                    <Button
-                      primary
-                      small
-                      onClick={() => sitDown(seat)}
-                    >
-                      Duduk
-                    </Button>
-                  )}
+          <div style={{background:"linear-gradient(145deg,#2a211c,#201813)",border:"1px solid rgba(201,162,39,0.28)",borderRadius:18,padding:18,color:cream,boxShadow:"0 10px 28px rgba(0,0,0,0.2)"}}>
+            <div style={{textAlign:"center",marginBottom:16}}><div style={{color:gold,fontWeight:800,fontSize:16}}>Pilih Kursi</div><div style={{color:cream,opacity:.62,fontSize:12,marginTop:4}}>Masukkan nama lalu pilih kursi yang kosong.</div></div>
+            <input value={nameDraft} onChange={(e)=>setNameDraft(e.target.value)} placeholder="Nama kamu" maxLength={18} style={{width:"100%",height:46,boxSizing:"border-box",padding:"0 13px",borderRadius:10,border:"1px solid rgba(201,162,39,0.55)",background:"#17110d",color:cream,outline:"none",marginBottom:14,fontSize:14}} />
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
+              {[0,1,2,3].map((seat)=>{ const occupied=!!players[seat]; return (
+                <div key={seat} style={{background:occupied?"rgba(201,162,39,0.08)":"rgba(0,0,0,0.22)",border:occupied?"1px solid rgba(201,162,39,0.28)":"1px solid rgba(245,239,224,0.09)",borderRadius:13,padding:13,textAlign:"center"}}>
+                  <div style={{color:gold,fontSize:11,fontWeight:800,letterSpacing:1}}>KURSI {seat+1}</div>
+                  <div style={{color:cream,fontSize:14,fontWeight:700,margin:"7px 0 10px",minHeight:20}}>{players[seat]?.name||"Kosong"}</div>
+                  {!occupied ? <Button primary small onClick={()=>sitDown(seat)}>Duduk</Button> : <div style={{color:"#8e887f",fontSize:11}}>Sudah ditempati</div>}
                 </div>
-              ))}
+              ); })}
             </div>
-
-            {error && (
-              <div
-                style={{
-                  color: "#E08080",
-                  fontSize: 12,
-                  marginTop: 10,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <div style={{color:"#E08080",background:"rgba(224,128,128,0.08)",border:"1px solid rgba(224,128,128,0.2)",borderRadius:9,padding:"9px 11px",fontSize:12,marginTop:12}}>{error}</div>}
           </div>
         )}
 
         {!inLobby && !gameReady && (
-          <div
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              borderRadius: 14,
-              padding: 16,
-              color: cream,
-              textAlign: "center",
-            }}
-          >
-            <div style={{ marginBottom: 10 }}>
-              Kamu duduk di Kursi {mySeat + 1} ({displayName(mySeat)}).{" "}
-              {amIHost
-                ? "Kamu host."
-                : "Menunggu host memulai game..."}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                justifyContent: "center",
-                flexWrap: "wrap",
-                marginBottom: 14,
-              }}
-            >
-              {[0, 1, 2, 3].map((seat) => (
-                <div
-                  key={seat}
-                  style={{
-                    background: "rgba(0,0,0,0.25)",
-                    borderRadius: 10,
-                    padding: "8px 12px",
-                    minWidth: 110,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      opacity: 0.8,
-                    }}
-                  >
-                    Kursi {seat + 1}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      marginBottom: players[seat] ? 6 : 0,
-                    }}
-                  >
-                    {players[seat]?.name || "Kosong (bot)"}
-                  </div>
-
-                  {amIHost &&
-                    players[seat] &&
-                    seat !== mySeat && (
-                      <Button
-                        small
-                        onClick={() => makeBot(seat)}
-                      >
-                        Jadikan Bot
-                      </Button>
-                    )}
+          <div style={{background:"linear-gradient(145deg,#2a211c,#201813)",border:"1px solid rgba(201,162,39,0.28)",borderRadius:18,padding:18,color:cream,boxShadow:"0 10px 28px rgba(0,0,0,0.2)"}}>
+            <div style={{textAlign:"center",marginBottom:16}}><div style={{color:gold,fontWeight:800,fontSize:16}}>Lobby</div><div style={{color:cream,opacity:.72,fontSize:12,marginTop:4}}>Kamu duduk di Kursi {mySeat+1}.{amIHost?" Kamu adalah host.":" Menunggu host memulai game..."}</div></div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
+              {[0,1,2,3].map((seat)=>{ const occupied=!!players[seat]; return (
+                <div key={seat} style={{background:occupied?"rgba(201,162,39,0.08)":"rgba(0,0,0,0.22)",border:occupied?"1px solid rgba(201,162,39,0.28)":"1px solid rgba(245,239,224,0.09)",borderRadius:13,padding:13,minHeight:82,boxSizing:"border-box"}}>
+                  <div style={{color:gold,fontSize:10,fontWeight:800,letterSpacing:1}}>KURSI {seat+1}</div>
+                  <div style={{color:cream,fontSize:14,fontWeight:700,marginTop:6,marginBottom:occupied&&amIHost&&seat!==mySeat?8:0}}>{players[seat]?.name||"BOT"}</div>
+                  {!occupied && <div style={{color:"#8e887f",fontSize:11}}>Akan dimainkan bot</div>}
+                  {amIHost&&occupied&&seat!==mySeat&&<Button small onClick={()=>makeBot(seat)}>Jadikan Bot</Button>}
                 </div>
-              ))}
+              ); })}
             </div>
-
-            {amIHost && (
-              <Button
-                primary
-                onClick={startGame}
-                disabled={occupiedSeats.length < 1}
-              >
-                Mulai Game
-              </Button>
-            )}
+            <div style={{marginTop:14,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.035)",color:"#aaa197",fontSize:11,lineHeight:1.45,textAlign:"center"}}>Kursi kosong otomatis diisi bot saat game dimulai.</div>
+            {amIHost&&<div style={{textAlign:"center",marginTop:15}}><Button primary onClick={startGame} disabled={occupiedSeats.length<1}>Mulai Game</Button></div>}
           </div>
         )}
 

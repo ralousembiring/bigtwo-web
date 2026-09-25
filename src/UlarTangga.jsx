@@ -143,7 +143,7 @@ function Button({ children, onClick, primary, disabled, small }) {
         background: disabled
           ? "#4a4238"
           : primary
-          ? "#C9A227"
+          ? "linear-gradient(180deg, #D8B42F, #C9A227)"
           : "rgba(255,255,255,0.08)",
         color: primary && !disabled ? "#1a1a1a" : "#F5EFE0",
         fontFamily: "system-ui, sans-serif",
@@ -153,6 +153,10 @@ function Button({ children, onClick, primary, disabled, small }) {
         opacity: disabled ? 0.6 : 1,
         boxSizing: "border-box",
         maxWidth: "100%",
+        boxShadow:
+          primary && !disabled
+            ? "0 6px 18px rgba(201,162,39,0.18)"
+            : "none",
       }}
     >
       {children}
@@ -244,7 +248,6 @@ export function UlarTangga() {
     url.searchParams.set("room", clean);
 
     window.history.pushState({}, "", url);
-
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
@@ -369,7 +372,12 @@ export function UlarTangga() {
       }
 
       const newPositions = [
-        ...(current.positions || [1, 1, 1, 1]),
+        ...(current.positions || [
+          1,
+          1,
+          1,
+          1,
+        ]),
       ];
 
       newPositions[mySeat] = newPosition;
@@ -573,103 +581,248 @@ export function UlarTangga() {
   const navy = "#0B2340";
   const navyDark = "#071730";
 
+  /*
+   * ============================================================
+   * ROOM ENTRY
+   * ============================================================
+   */
+
   if (!joined) {
     return (
       <div
         style={{
-          fontFamily: "system-ui, sans-serif",
-          background: "#1a1310",
           minHeight: "100dvh",
           width: "100%",
+          boxSizing: "border-box",
+          background:
+            "radial-gradient(circle at 50% 35%, rgba(201,162,39,0.10) 0%, rgba(201,162,39,0.035) 22%, transparent 48%), #1a1310",
+          color: cream,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "16px",
-          boxSizing: "border-box",
+          padding: "24px 16px",
           overflowX: "hidden",
+          fontFamily:
+            "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
         <div
           style={{
-            background: "rgba(255,255,255,0.06)",
-            borderRadius: 16,
-            padding: "clamp(20px, 5vw, 24px)",
-            maxWidth: 380,
             width: "100%",
-            color: cream,
+            maxWidth: 470,
             boxSizing: "border-box",
           }}
         >
-          <h1
+          {/* TITLE */}
+          <div
             style={{
-              fontFamily: "Georgia, serif",
-              color: gold,
-              fontSize: "clamp(20px, 6vw, 22px)",
-              marginTop: 0,
+              textAlign: "center",
+              marginBottom: 18,
             }}
           >
-            🐍 Ular Tangga
-          </h1>
+            <div
+              style={{
+                width: 58,
+                height: 58,
+                margin: "0 auto 12px",
+                borderRadius: 17,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  "linear-gradient(145deg, rgba(201,162,39,0.20), rgba(201,162,39,0.06))",
+                border:
+                  "1px solid rgba(201,162,39,0.35)",
+                boxShadow:
+                  "0 12px 30px rgba(0,0,0,0.28)",
+                fontSize: 30,
+              }}
+            >
+              🐍
+            </div>
 
-          <p
-            style={{
-              fontSize: 13,
-              opacity: 0.85,
-              lineHeight: 1.5,
-            }}
-          >
-            Main Ular Tangga multiplayer
-            bersama teman atau bot.
-          </p>
+            <h1
+              style={{
+                fontFamily: "Georgia, serif",
+                color: gold,
+                margin: 0,
+                fontSize: "clamp(27px, 7vw, 32px)",
+                lineHeight: 1.15,
+                fontWeight: 700,
+              }}
+            >
+              Ular Tangga
+            </h1>
 
-          <input
-            value={roomInput}
-            onChange={(e) =>
-              setRoomInput(e.target.value)
-            }
-            placeholder="Kode room (kosongkan untuk baru)"
-            style={{
-              padding: "12px 10px",
-              borderRadius: 8,
-              border: "1px solid #C9A227",
-              width: "100%",
-              marginBottom: 12,
-              boxSizing: "border-box",
-              background: "#f5efe0",
-              minHeight: 44,
-              fontSize: 14,
-            }}
-          />
+            <p
+              style={{
+                margin: "8px auto 0",
+                maxWidth: 350,
+                color: cream,
+                opacity: 0.72,
+                fontSize: 13,
+                lineHeight: 1.55,
+              }}
+            >
+              Main Ular Tangga multiplayer
+              bersama teman atau bot.
+            </p>
+          </div>
 
+          {/* ROOM CARD */}
           <div
             style={{
               width: "100%",
+              boxSizing: "border-box",
+              background:
+                "linear-gradient(180deg, rgba(39,34,29,0.98), rgba(31,27,23,0.98))",
+              border:
+                "1px solid rgba(201,162,39,0.48)",
+              borderRadius: 22,
+              padding:
+                "clamp(24px, 6vw, 32px)",
+              boxShadow:
+                "0 22px 60px rgba(0,0,0,0.42), 0 0 35px rgba(201,162,39,0.05)",
             }}
           >
-            <Button
-              primary
+            <div
+              style={{
+                textAlign: "center",
+                marginBottom: 22,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 1.5,
+                  fontWeight: 800,
+                  color: cream,
+                  opacity: 0.55,
+                  marginBottom: 7,
+                }}
+              >
+                ROOM CODE
+              </div>
+
+              <div
+                style={{
+                  fontFamily: "Georgia, serif",
+                  color: gold,
+                  fontSize: 17,
+                  fontWeight: 700,
+                }}
+              >
+                Buat atau gabung room
+              </div>
+            </div>
+
+            {/* INPUT */}
+            <input
+              value={roomInput}
+              onChange={(e) =>
+                setRoomInput(
+                  e.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, "")
+                    .slice(0, 5)
+                )
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  enterRoom(roomInput);
+                }
+              }}
+              placeholder="KODE ROOM"
+              maxLength={5}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              style={{
+  width: "100%",
+  height: 56,
+  boxSizing: "border-box",
+  borderRadius: 14,
+  border:
+    "1px solid rgba(201,162,39,0.75)",
+  background: "#14110F",
+  color: "#F5EFE0",
+  outline: "none",
+  textAlign: "center",
+  fontSize: 20,
+  fontWeight: 900,
+  letterSpacing: 5,
+  padding: "0 16px",
+  textTransform: "uppercase",
+  boxShadow:
+    "inset 0 2px 8px rgba(0,0,0,0.35)",
+}}
+            />
+
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: 11,
+                color: cream,
+                opacity: 0.52,
+                lineHeight: 1.5,
+                margin:
+                  "10px 4px 18px",
+              }}
+            >
+              Kosongkan kode untuk membuat
+              room baru secara otomatis.
+            </div>
+
+            {/* JOIN / CREATE */}
+            <button
+              type="button"
               onClick={() =>
                 enterRoom(roomInput)
               }
+              style={{
+                width: "100%",
+                height: 50,
+                border: "none",
+                borderRadius: 13,
+                background:
+                  "linear-gradient(180deg, #D8B42F, #C9A227)",
+                color: "#1A1612",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow:
+                  "0 9px 24px rgba(201,162,39,0.22)",
+                transition:
+                  "transform 0.15s ease, box-shadow 0.15s ease",
+              }}
             >
               {roomInput.trim()
                 ? "Gabung Room"
                 : "Buat Room Baru"}
-            </Button>
-          </div>
+            </button>
 
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 14,
-            }}
-          >
-            <Button
-              small
-              onClick={backToHub}
+            <div
+              style={{
+                height: 1,
+                background:
+                  "rgba(255,255,255,0.07)",
+                margin: "20px 0 16px",
+              }}
+            />
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+              }}
             >
-              ← Kembali ke Game Hub
-            </Button>
+              <Button
+                small
+                onClick={backToHub}
+              >
+                ← Kembali ke Game Hub
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -688,7 +841,8 @@ export function UlarTangga() {
         background: "#1a1310",
         minHeight: "100dvh",
         width: "100%",
-        padding: "clamp(8px, 2vw, 14px)",
+        padding:
+          "clamp(8px, 2vw, 14px)",
         color: cream,
         boxSizing: "border-box",
         overflowX: "hidden",
@@ -712,7 +866,8 @@ export function UlarTangga() {
             style={{
               color: gold,
               fontFamily: "Georgia, serif",
-              fontSize: "clamp(20px, 5vw, 22px)",
+              fontSize:
+                "clamp(20px, 5vw, 22px)",
               fontWeight: 700,
             }}
           >
@@ -736,7 +891,8 @@ export function UlarTangga() {
               background:
                 "rgba(255,255,255,0.06)",
               borderRadius: 14,
-              padding: "clamp(12px, 4vw, 16px)",
+              padding:
+                "clamp(12px, 4vw, 16px)",
               marginBottom: 12,
               boxSizing: "border-box",
             }}
@@ -759,7 +915,8 @@ export function UlarTangga() {
               style={{
                 padding: "11px 10px",
                 borderRadius: 8,
-                border: "1px solid #C9A227",
+                border:
+                  "1px solid #C9A227",
                 width: 220,
                 maxWidth: "100%",
                 marginBottom: 12,
@@ -806,7 +963,8 @@ export function UlarTangga() {
                         margin:
                           "5px 0 9px",
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        textOverflow:
+                          "ellipsis",
                       }}
                     >
                       {players[seat]?.name ||
@@ -849,7 +1007,8 @@ export function UlarTangga() {
               background:
                 "rgba(255,255,255,0.06)",
               borderRadius: 14,
-              padding: "clamp(12px, 4vw, 16px)",
+              padding:
+                "clamp(12px, 4vw, 16px)",
               textAlign: "center",
               boxSizing: "border-box",
             }}
@@ -902,7 +1061,8 @@ export function UlarTangga() {
                         fontWeight: 700,
                         marginTop: 4,
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        textOverflow:
+                          "ellipsis",
                       }}
                     >
                       {players[seat]?.name ||
@@ -1041,7 +1201,8 @@ export function UlarTangga() {
                             borderRadius: 4,
                             minWidth: 0,
                             minHeight: 0,
-                            overflow: "hidden",
+                            overflow:
+                              "hidden",
                             display: "flex",
                             flexDirection:
                               "column",
@@ -1210,7 +1371,8 @@ export function UlarTangga() {
                     fontWeight: 800,
                     boxShadow:
                       "0 4px 10px rgba(0,0,0,0.35)",
-                    boxSizing: "border-box",
+                    boxSizing:
+                      "border-box",
                   }}
                 >
                   {game.lastRoll || "?"}
@@ -1302,7 +1464,8 @@ export function UlarTangga() {
                       <div
                         style={{
                           minWidth: 0,
-                          overflow: "hidden",
+                          overflow:
+                            "hidden",
                         }}
                       >
                         <div
@@ -1377,7 +1540,8 @@ export function UlarTangga() {
             <div
               style={{
                 display: "flex",
-                justifyContent: "center",
+                justifyContent:
+                  "center",
                 marginTop: 12,
                 paddingBottom: 4,
               }}

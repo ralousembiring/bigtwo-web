@@ -18,7 +18,7 @@ const CREAM = "#F5EFE0";
 const BG = "#1a1310";
 
 const MAX_PLAYERS = 8;
-const ROUND_TIME = 15;
+const ROUND_TIME = 30;
 
 const CHARACTERS = [
   {
