@@ -75,30 +75,98 @@ function getPlayerId() {
 }
 
 function normalizeBoard(board) {
-  if (!Array.isArray(board)) {
-    return createInitialState().board;
+  const initialBoard =
+    createInitialState().board;
+
+  /*
+   * Kalau board bukan array sama sekali,
+   * pakai board awal.
+   */
+  if (
+    !board ||
+    (
+      !Array.isArray(board) &&
+      typeof board !== "object"
+    )
+  ) {
+    return initialBoard;
   }
 
-  return board.map((row) =>
-    Array.isArray(row) ? [...row] : Array(8).fill(null)
-  );
+  /*
+   * Firebase kadang bisa mengembalikan
+   * struktur array sebagai object.
+   * Kita paksa kembali menjadi 8x8.
+   */
+  const normalized = [];
+
+  for (let row = 0; row < 8; row++) {
+    const sourceRow =
+      board?.[row];
+
+    const newRow = [];
+
+    for (let col = 0; col < 8; col++) {
+      if (
+        sourceRow &&
+        typeof sourceRow === "object"
+      ) {
+        newRow.push(
+          sourceRow[col] ?? null
+        );
+      } else {
+        /*
+         * Kalau barisnya hilang,
+         * gunakan posisi dari initial board.
+         */
+        newRow.push(
+          initialBoard?.[row]?.[col] ??
+            null
+        );
+      }
+    }
+
+    normalized.push(newRow);
+  }
+
+  return normalized;
 }
 
 function normalizeGameState(game) {
   if (!game) return null;
 
-  const initial = createInitialState();
+  const initial =
+    createInitialState();
+
+  const normalizedBoard =
+    normalizeBoard(game.board);
 
   return {
     ...initial,
     ...game,
-    board: normalizeBoard(game.board),
-    turn: game.turn || "white",
-    castling: game.castling || initial.castling,
-    enPassant: game.enPassant ?? null,
-    moveHistory: Array.isArray(game.moveHistory)
-      ? game.moveHistory
-      : [],
+
+    /*
+     * WAJIB selalu 8x8.
+     */
+    board: normalizedBoard,
+
+    turn:
+      game.turn === "black"
+        ? "black"
+        : "white",
+
+    castling:
+      game.castling ||
+      initial.castling,
+
+    enPassant:
+      game.enPassant ?? null,
+
+    moveHistory:
+      Array.isArray(
+        game.moveHistory
+      )
+        ? game.moveHistory
+        : [],
   };
 }
 
@@ -638,29 +706,81 @@ function Chess() {
       const code =
         generateRoomCode();
 
-      await set(
-        ref(
-          db,
-          `chessRooms/${code}`
-        ),
-        {
-          createdAt: Date.now(),
+      async function startPvPGame() {
+  if (!roomId) return;
 
-          hostId: playerId,
+  if (
+    roomData?.hostId !== playerId
+  ) {
+    setMessage(
+      "Hanya host yang bisa memulai game."
+    );
+    return;
+  }
 
-          players: {
-            [playerId]: {
-              id: playerId,
-              name: "Player 1",
-              color: null,
-              joinedAt: Date.now(),
-            },
-          },
+  const players =
+    roomData?.players || {};
 
-          game: null,
-        }
+  const playerList =
+    Object.values(players);
+
+  if (playerList.length !== 2) {
+    setMessage(
+      "Menunggu 2 pemain."
+    );
+    return;
+  }
+
+  const whitePlayer =
+    playerList.find(
+      (player) =>
+        player?.color === "white"
+    );
+
+  const blackPlayer =
+    playerList.find(
+      (player) =>
+        player?.color === "black"
+    );
+
+  if (
+    !whitePlayer ||
+    !blackPlayer
+  ) {
+    setMessage(
+      "Kedua pemain harus memilih warna terlebih dahulu."
+    );
+    return;
+  }
+
+  try {
+    const initial =
+      normalizeGameState(
+        createInitialState()
       );
 
+    await set(
+      ref(
+        db,
+        `chessRooms/${roomId}/game`
+      ),
+      initial
+    );
+
+    setSelected(null);
+    setPendingPromotion(null);
+    setMessage("");
+  } catch (error) {
+    console.error(
+      "Start Chess error:",
+      error
+    );
+
+    setMessage(
+      "Gagal memulai game."
+    );
+  }
+}
       openRoomUrl(code);
     } catch (error) {
       console.error(error);
