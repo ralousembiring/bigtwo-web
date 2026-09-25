@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -29,23 +30,26 @@ const CREAM = "#F5EFE0";
 const BG = "#1a1310";
 
 const PROMOTION_OPTIONS = [
-  {
-    type: "queen",
-    label: "Ratu",
-  },
-  {
-    type: "rook",
-    label: "Benteng",
-  },
-  {
-    type: "bishop",
-    label: "Gajah",
-  },
-  {
-    type: "knight",
-    label: "Kuda",
-  },
+  { type: "queen", label: "♕", name: "Queen" },
+  { type: "rook", label: "♖", name: "Rook" },
+  { type: "bishop", label: "♗", name: "Bishop" },
+  { type: "knight", label: "♘", name: "Knight" },
 ];
+
+const BOT_LEVELS = {
+  easy: {
+    name: "Easy",
+    emoji: "🟢",
+  },
+  normal: {
+    name: "Normal",
+    emoji: "🟡",
+  },
+  hard: {
+    name: "Hard",
+    emoji: "🔴",
+  },
+};
 
 function generateRoomCode() {
   return Math.random()
@@ -55,116 +59,487 @@ function generateRoomCode() {
 }
 
 function getPlayerId() {
-  try {
-    const key =
-      "rgamehub_chess_player_id";
+  const key = "rgamehub_chess_player_id";
 
-    let id = sessionStorage.getItem(key);
+  let id = localStorage.getItem(key);
 
-    if (!id) {
-      id =
-        "player_" +
-        Math.random()
-          .toString(36)
-          .substring(2) +
-        Date.now().toString(36);
+  if (!id) {
+    id =
+      "chess_" +
+      Math.random().toString(36).substring(2) +
+      Date.now().toString(36);
 
-      sessionStorage.setItem(
-        key,
-        id
-      );
-    }
-
-    return id;
-  } catch {
-    return (
-      "player_" +
-      Math.random()
-        .toString(36)
-        .substring(2) +
-      Date.now().toString(36)
-    );
+    localStorage.setItem(key, id);
   }
+
+  return id;
 }
 
 function normalizeBoard(board) {
-  if (!board) return null;
+  if (!Array.isArray(board)) {
+    return createInitialState().board;
+  }
 
+  return board.map((row) =>
+    Array.isArray(row) ? [...row] : Array(8).fill(null)
+  );
+}
+
+function normalizeGameState(game) {
+  if (!game) return null;
+
+  const initial = createInitialState();
+
+  return {
+    ...initial,
+    ...game,
+    board: normalizeBoard(game.board),
+    turn: game.turn || "white",
+    castling:
+      game.castling || initial.castling,
+    enPassant:
+      game.enPassant ?? null,
+    moveHistory:
+      Array.isArray(game.moveHistory)
+        ? game.moveHistory
+        : [],
+  };
+}
+
+function pieceColor(piece) {
+  if (!piece) return null;
+
+  if (typeof piece === "string") {
+    if (piece === piece.toUpperCase()) {
+      return "white";
+    }
+
+    return "black";
+  }
+
+  return piece.color || null;
+}
+
+function pieceType(piece) {
+  if (!piece) return null;
+
+  if (typeof piece === "string") {
+    return piece.toLowerCase();
+  }
+
+  return piece.type || null;
+}
+
+function getMoveTarget(move) {
+  if (!move) return null;
+
+  if (Array.isArray(move)) {
+    return {
+      row: move[0],
+      col: move[1],
+    };
+  }
+
+  return {
+    row:
+      move.row ??
+      move.toRow ??
+      move.to?.row ??
+      move.r,
+    col:
+      move.col ??
+      move.toCol ??
+      move.to?.col ??
+      move.c,
+  };
+}
+
+function sameSquare(a, b) {
+  return (
+    a &&
+    b &&
+    a.row === b.row &&
+    a.col === b.col
+  );
+}
+
+function moveKey(from, move) {
+  const target = getMoveTarget(move);
+
+  if (!target) return "";
+
+  return `${from.row},${from.col}-${target.row},${target.col}`;
+}
+
+function cloneState(state) {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function allLegalMovesForColor(state, color) {
   const result = [];
 
   for (let row = 0; row < 8; row++) {
-    const sourceRow =
-      Array.isArray(board)
-        ? board[row]
-        : board[String(row)];
-
-    const newRow = [];
-
     for (let col = 0; col < 8; col++) {
-      let value = null;
+      const piece = state.board?.[row]?.[col];
 
-      if (Array.isArray(sourceRow)) {
-        value =
-          sourceRow[col] ?? null;
-      } else if (sourceRow) {
-        value =
-          sourceRow[String(col)] ??
-          null;
+      if (!piece) continue;
+
+      if (pieceColor(piece) !== color) {
+        continue;
       }
 
-      newRow.push(value);
+      const moves = getLegalMoves(
+        state,
+        row,
+        col
+      ) || [];
+
+      for (const move of moves) {
+        result.push({
+          from: {
+            row,
+            col,
+          },
+          move,
+        });
+      }
     }
-
-    result.push(newRow);
-  }
-
-  if (
-    result.length !== 8 ||
-    !result.every(
-      (row) =>
-        Array.isArray(row) &&
-        row.length === 8
-    )
-  ) {
-    return null;
   }
 
   return result;
 }
 
-function normalizeGameState(state) {
-  if (!state) return null;
+function materialValue(piece) {
+  switch (pieceType(piece)) {
+    case "pawn":
+    case "p":
+      return 100;
 
-  const board = normalizeBoard(
-    state.board
-  );
+    case "knight":
+    case "n":
+      return 320;
 
-  if (!board) return null;
+    case "bishop":
+    case "b":
+      return 330;
 
-  return {
-    ...state,
-    board,
-  };
+    case "rook":
+    case "r":
+      return 500;
+
+    case "queen":
+    case "q":
+      return 900;
+
+    case "king":
+    case "k":
+      return 20000;
+
+    default:
+      return 0;
+  }
 }
 
-export function Chess() {
-  const [playerId] = useState(() =>
-    getPlayerId()
+function evaluateBoard(state, botColor) {
+  let score = 0;
+
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const piece = state.board?.[row]?.[col];
+
+      if (!piece) continue;
+
+      const value = materialValue(piece);
+
+      if (pieceColor(piece) === botColor) {
+        score += value;
+      } else {
+        score -= value;
+      }
+    }
+  }
+
+  const status = getGameStatus(state);
+
+  if (status.gameOver && status.check) {
+    if (status.winner === botColor) {
+      score += 100000;
+    } else {
+      score -= 100000;
+    }
+  }
+
+  if (status.check) {
+    const checkedColor = state.turn;
+
+    if (checkedColor === botColor) {
+      score -= 50;
+    } else {
+      score += 50;
+    }
+  }
+
+  return score;
+}
+
+function simulateMove(
+  state,
+  from,
+  move,
+  promotion = "queen"
+) {
+  try {
+    const next = applyMove(
+      cloneState(state),
+      from.row,
+      from.col,
+      move,
+      promotion
+    );
+
+    return normalizeGameState(next);
+  } catch {
+    return null;
+  }
+}
+
+function chooseRandomMove(moves) {
+  if (!moves.length) return null;
+
+  return moves[
+    Math.floor(
+      Math.random() * moves.length
+    )
+  ];
+}
+
+function chooseEasyMove(state, moves) {
+  if (!moves.length) return null;
+
+  const captures = [];
+
+  for (const item of moves) {
+    const target = getMoveTarget(item.move);
+
+    if (!target) continue;
+
+    const captured =
+      state.board?.[target.row]?.[target.col];
+
+    if (captured) {
+      captures.push(item);
+    }
+  }
+
+  if (
+    captures.length > 0 &&
+    Math.random() < 0.65
+  ) {
+    return chooseRandomMove(captures);
+  }
+
+  return chooseRandomMove(moves);
+}
+
+function chooseNormalMove(
+  state,
+  moves,
+  botColor
+) {
+  if (!moves.length) return null;
+
+  const scored = moves.map((item) => {
+    const target = getMoveTarget(item.move);
+
+    const captured =
+      target
+        ? state.board?.[target.row]?.[target.col]
+        : null;
+
+    const next = simulateMove(
+      state,
+      item.from,
+      item.move
+    );
+
+    let score = 0;
+
+    if (captured) {
+      score +=
+        materialValue(captured) * 1.2;
+    }
+
+    if (next) {
+      const status = getGameStatus(next);
+
+      if (
+        status.gameOver &&
+        status.winner === botColor
+      ) {
+        score += 100000;
+      }
+
+      if (
+        status.check &&
+        next.turn !== botColor
+      ) {
+        score += 80;
+      }
+
+      score +=
+        evaluateBoard(next, botColor) * 0.25;
+    }
+
+    score += Math.random() * 40;
+
+    return {
+      item,
+      score,
+    };
+  });
+
+  scored.sort(
+    (a, b) => b.score - a.score
   );
 
-  const [roomId, setRoomId] =
-    useState(() => {
-      const params =
-        new URLSearchParams(
-          window.location.search
+  const top = scored.slice(
+    0,
+    Math.min(3, scored.length)
+  );
+
+  return chooseRandomMove(
+    top
+  )?.item;
+}
+
+function chooseHardMove(
+  state,
+  moves,
+  botColor
+) {
+  if (!moves.length) return null;
+
+  let bestMove = null;
+  let bestScore = -Infinity;
+
+  for (const item of moves) {
+    const next = simulateMove(
+      state,
+      item.from,
+      item.move
+    );
+
+    if (!next) continue;
+
+    const status = getGameStatus(next);
+
+    if (
+      status.gameOver &&
+      status.winner === botColor
+    ) {
+      return item;
+    }
+
+    let score =
+      evaluateBoard(
+        next,
+        botColor
+      );
+
+    const opponentColor =
+      botColor === "white"
+        ? "black"
+        : "white";
+
+    const opponentMoves =
+      allLegalMovesForColor(
+        next,
+        opponentColor
+      );
+
+    for (const opponentMove of opponentMoves) {
+      const reply = simulateMove(
+        next,
+        opponentMove.from,
+        opponentMove.move
+      );
+
+      if (!reply) continue;
+
+      const replyScore =
+        evaluateBoard(
+          reply,
+          botColor
         );
 
-      return (
-        params.get("room") || null
+      score = Math.min(
+        score,
+        replyScore
       );
-    });
+    }
+
+    const target =
+      getMoveTarget(item.move);
+
+    if (target) {
+      const captured =
+        state.board?.[target.row]?.[
+          target.col
+        ];
+
+      if (captured) {
+        score +=
+          materialValue(captured) * 0.8;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = item;
+    }
+  }
+
+  return (
+    bestMove ||
+    chooseRandomMove(moves)
+  );
+}
+
+export  function Chess() {
+  const playerIdRef =
+    useRef(getPlayerId());
+
+  const playerId =
+    playerIdRef.current;
+
+  const botTimerRef =
+    useRef(null);
+
+  const botBusyRef =
+    useRef(false);
+
+  const [mode, setMode] =
+    useState(
+      window.location.search.includes(
+        "room="
+      )
+        ? "pvp"
+        : "select"
+    );
+
+  const [botLevel, setBotLevel] =
+    useState("normal");
+
+  const [botColor, setBotColor] =
+    useState("black");
+
+  const [playerColor, setPlayerColor] =
+    useState("white");
 
   const [roomInput, setRoomInput] =
+    useState("");
+
+  const [roomId, setRoomId] =
     useState(() => {
       const params =
         new URLSearchParams(
@@ -190,24 +565,31 @@ export function Chess() {
     setPendingPromotion,
   ] = useState(null);
 
-  const [loading, setLoading] =
-    useState(false);
-
   const [message, setMessage] =
     useState("");
 
-  // =========================================
-  // FIREBASE ROOM LISTENER
-  // =========================================
+  const [loading, setLoading] =
+    useState(false);
+
+  const [botThinking, setBotThinking] =
+    useState(false);
+
+  const isBotMode =
+    mode === "bot";
+
+  const isPvP =
+    mode === "pvp";
+
+  /*
+   * ================================
+   * FIREBASE ROOM LISTENER
+   * ================================
+   */
 
   useEffect(() => {
-    if (!roomId) {
-      setRoomData(null);
-      setGameState(null);
+    if (!isPvP || !roomId) {
       return;
     }
-
-    setLoading(true);
 
     const roomRef = ref(
       db,
@@ -217,146 +599,123 @@ export function Chess() {
     const unsubscribe = onValue(
       roomRef,
       (snapshot) => {
-        if (!snapshot.exists()) {
+        const data =
+          snapshot.val();
+
+        if (!data) {
           setRoomData(null);
           setGameState(null);
-          setLoading(false);
-          setMessage(
-            "Room tidak ditemukan."
-          );
           return;
         }
 
-        const data = snapshot.val();
-
         setRoomData(data);
 
-        if (
-          data?.game?.started ===
-            true &&
-          data?.game?.state
-        ) {
-          const normalized =
+        if (data.game) {
+          setGameState(
             normalizeGameState(
-              data.game.state
-            );
-
-          setGameState(normalized);
+              data.game
+            )
+          );
         } else {
           setGameState(null);
-          setSelected(null);
-          setPendingPromotion(null);
         }
-
-        setLoading(false);
-      },
-      (error) => {
-        console.error(
-          "Chess room listener error:",
-          error
-        );
-
-        setLoading(false);
-
-        setMessage(
-          "Gagal membaca room."
-        );
       }
     );
 
-    return () => unsubscribe();
-  }, [roomId]);
+    return () =>
+      unsubscribe();
+  }, [roomId, isPvP]);
 
-  // =========================================
-  // URL
-  // =========================================
+  /*
+   * ================================
+   * URL
+   * ================================
+   */
 
-  function openRoomInUrl(code) {
-    const newUrl =
+  function openRoomUrl(code) {
+    const url =
       `${window.location.pathname}` +
       `?game=chess&room=${code}`;
 
-    window.history.replaceState(
+    window.history.pushState(
       {},
       "",
-      newUrl
+      url
     );
+
+    setRoomId(code);
   }
 
-  // =========================================
-  // CREATE ROOM
-  // =========================================
+  function clearRoomUrl() {
+    const url =
+      `${window.location.pathname}` +
+      `?game=chess`;
+
+    window.history.pushState(
+      {},
+      "",
+      url
+    );
+
+    setRoomId("");
+  }
+
+  /*
+   * ================================
+   * CREATE ROOM
+   * ================================
+   */
 
   async function createRoom() {
     setLoading(true);
     setMessage("");
 
     try {
-      let code =
+      const code =
         generateRoomCode();
 
-      let roomRef = ref(
-        db,
-        `chessRooms/${code}`
-      );
+      const initialGame =
+        createInitialState();
 
-      let snapshot =
-        await get(roomRef);
-
-      if (snapshot.exists()) {
-        code =
-          generateRoomCode();
-
-        roomRef = ref(
+      await set(
+        ref(
           db,
           `chessRooms/${code}`
-        );
+        ),
+        {
+          createdAt: Date.now(),
 
-        snapshot =
-          await get(roomRef);
-      }
+          players: {
+            white: {
+              id: playerId,
+              name: "Player 1",
+            },
+            black: null,
+          },
 
-      await set(roomRef, {
-        host: playerId,
+          game: null,
 
-        players: {
-          white: null,
-          black: null,
-        },
-
-        game: {
-          started: false,
-          state: null,
-        },
-
-        createdAt: Date.now(),
-      });
-
-      setRoomId(code);
-      setRoomInput(code);
-
-      openRoomInUrl(code);
-
-      setMessage(
-        "Room berhasil dibuat."
+          hostId: playerId,
+        }
       );
+
+      openRoomUrl(code);
     } catch (error) {
-      console.error(
-        "Create room error:",
-        error
-      );
+      console.error(error);
 
       setMessage(
         "Gagal membuat room."
       );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
-  // =========================================
-  // JOIN ROOM
-  // =========================================
+  /*
+   * ================================
+   * JOIN ROOM
+   * ================================
+   */
 
   async function joinRoom() {
     const code =
@@ -366,8 +725,9 @@ export function Chess() {
 
     if (!code) {
       setMessage(
-        "Masukkan kode room dulu."
+        "Masukkan kode room."
       );
+
       return;
     }
 
@@ -388,52 +748,76 @@ export function Chess() {
           "Room tidak ditemukan."
         );
 
-        setLoading(false);
         return;
       }
 
-      setRoomId(code);
-      setRoomInput(code);
+      const data =
+        snapshot.val();
 
-      openRoomInUrl(code);
+      const players =
+        data.players || {};
+
+      if (
+        players.white?.id ===
+          playerId ||
+        players.black?.id ===
+          playerId
+      ) {
+        openRoomUrl(code);
+        return;
+      }
+
+      if (!players.white) {
+        await update(
+          roomRef,
+          {
+            "players/white": {
+              id: playerId,
+              name: "Player",
+            },
+          }
+        );
+      } else if (!players.black) {
+        await update(
+          roomRef,
+          {
+            "players/black": {
+              id: playerId,
+              name: "Player",
+            },
+          }
+        );
+      } else {
+        setMessage(
+          "Room sudah penuh."
+        );
+
+        return;
+      }
+
+      openRoomUrl(code);
     } catch (error) {
-      console.error(
-        "Join room error:",
-        error
-      );
+      console.error(error);
 
       setMessage(
-        "Gagal masuk ke room."
+        "Gagal bergabung ke room."
       );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
-  // =========================================
-  // LEAVE ROOM
-  // =========================================
-
-  function leaveRoom() {
-    setRoomId(null);
-    setRoomData(null);
-    setGameState(null);
-    setSelected(null);
-    setPendingPromotion(null);
-    setMessage("");
-
-    window.history.replaceState(
-      {},
-      "",
-      `${window.location.pathname}?game=chess`
-    );
-  }
-
-  // =========================================
-  // MY COLOR
-  // =========================================
+  /*
+   * ================================
+   * SEAT
+   * ================================
+   */
 
   const myColor = useMemo(() => {
+    if (isBotMode) {
+      return playerColor;
+    }
+
     if (!roomData?.players) {
       return null;
     }
@@ -453,240 +837,111 @@ export function Chess() {
     }
 
     return null;
-  }, [roomData, playerId]);
+  }, [
+    roomData,
+    playerId,
+    isBotMode,
+    playerColor,
+  ]);
 
-  // =========================================
-  // TAKE SEAT
-  // =========================================
+  /*
+   * ================================
+   * START PVP GAME
+   * ================================
+   */
 
-  async function takeSeat(color) {
-    if (!roomId || !roomData) {
-      return;
-    }
+  async function startPvPGame() {
+    if (!roomId) return;
 
-    if (roomData.game?.started) {
-      setMessage(
-        "Game sudah dimulai."
-      );
-      return;
-    }
-
-    const currentSeat =
-      roomData.players?.[color];
+    const players =
+      roomData?.players || {};
 
     if (
-      currentSeat &&
-      currentSeat.id !== playerId
+      !players.white ||
+      !players.black
     ) {
       setMessage(
-        "Kursi ini sudah ditempati."
+        "Menunggu 2 pemain."
       );
+
       return;
     }
 
-    try {
-      const roomRef = ref(
+    const initial =
+      createInitialState();
+
+    await set(
+      ref(
         db,
-        `chessRooms/${roomId}`
-      );
-
-      const updates = {};
-
-      if (
-        roomData.players?.white
-          ?.id === playerId
-      ) {
-        updates[
-          "players/white"
-        ] = null;
-      }
-
-      if (
-        roomData.players?.black
-          ?.id === playerId
-      ) {
-        updates[
-          "players/black"
-        ] = null;
-      }
-
-      updates[
-        `players/${color}`
-      ] = {
-        id: playerId,
-        joinedAt: Date.now(),
-      };
-
-      await update(
-        roomRef,
-        updates
-      );
-
-      setMessage(
-        color === "white"
-          ? "Kamu duduk sebagai PUTIH."
-          : "Kamu duduk sebagai HITAM."
-      );
-    } catch (error) {
-      console.error(
-        "Take seat error:",
-        error
-      );
-
-      setMessage(
-        "Gagal memilih kursi."
-      );
-    }
+        `chessRooms/${roomId}/game`
+      ),
+      initial
+    );
   }
 
-  // =========================================
-  // LEAVE SEAT
-  // =========================================
+  /*
+   * ================================
+   * START BOT
+   * ================================
+   */
 
-  async function leaveSeat() {
-    if (!roomId || !myColor) {
-      return;
-    }
+  function startBotGame() {
+    const initial =
+      createInitialState();
 
-    if (roomData?.game?.started) {
-      setMessage(
-        "Game sudah dimulai."
-      );
-      return;
-    }
+    setGameState(initial);
 
-    try {
-      await set(
-        ref(
-          db,
-          `chessRooms/${roomId}/players/${myColor}`
-        ),
-        null
-      );
+    setSelected(null);
 
-      setMessage(
-        "Kamu meninggalkan kursi."
-      );
-    } catch (error) {
-      console.error(
-        "Leave seat error:",
-        error
-      );
+    setPendingPromotion(null);
 
-      setMessage(
-        "Gagal meninggalkan kursi."
-      );
-    }
-  }
-
-  // =========================================
-  // START GAME
-  // =========================================
-
-  async function startGame() {
-    if (!roomId || !roomData) {
-      return;
-    }
-
-    if (roomData.host !== playerId) {
-      setMessage(
-        "Hanya host yang bisa memulai game."
-      );
-      return;
-    }
-
-    if (
-      !roomData.players?.white ||
-      !roomData.players?.black
-    ) {
-      setMessage(
-        "PUTIH dan HITAM harus terisi dulu."
-      );
-      return;
-    }
-
-    if (roomData.game?.started) {
-      return;
-    }
-
-    setLoading(true);
     setMessage("");
 
-    try {
-      const initialState =
-        createInitialState();
-
-      await update(
-        ref(
-          db,
-          `chessRooms/${roomId}`
-        ),
-        {
-          "game/started": true,
-          "game/state":
-            initialState,
-        }
-      );
-
-      setMessage(
-        "Game dimulai!"
-      );
-    } catch (error) {
-      console.error(
-        "Start game error:",
-        error
-      );
-
-      setMessage(
-        "Gagal memulai game."
-      );
-    }
-
-    setLoading(false);
+    setMode("bot");
   }
 
-  // =========================================
-  // STATUS
-  // =========================================
+  function returnToModeSelect() {
+    if (botTimerRef.current) {
+      clearTimeout(
+        botTimerRef.current
+      );
 
-  const status = useMemo(() => {
-    if (
-      !roomData?.game?.started
-    ) {
-      return {
-        status: "waiting",
-        gameOver: false,
-        check: false,
-        winner: null,
-      };
+      botTimerRef.current =
+        null;
     }
 
+    botBusyRef.current =
+      false;
+
+    setBotThinking(false);
+
+    setGameState(null);
+
+    setSelected(null);
+
+    setPendingPromotion(null);
+
+    setRoomData(null);
+
+    setRoomId("");
+
+    clearRoomUrl();
+
+    setMode("select");
+  }
+
+  /*
+   * ================================
+   * STATUS
+   * ================================
+   */
+
+  const status = useMemo(() => {
     if (!gameState) {
       return {
         status: "waiting",
-        gameOver: false,
         check: false,
-        winner: null,
-      };
-    }
-
-    const board =
-      gameState.board;
-
-    const validBoard =
-      Array.isArray(board) &&
-      board.length === 8 &&
-      board.every(
-        (row) =>
-          Array.isArray(row) &&
-          row.length === 8
-      );
-
-    if (!validBoard) {
-      return {
-        status: "waiting",
         gameOver: false,
-        check: false,
         winner: null,
       };
     }
@@ -694,269 +949,316 @@ export function Chess() {
     return getGameStatus(
       gameState
     );
-  }, [
-    gameState,
-    roomData?.game?.started,
-  ]);
-
-  // =========================================
-  // VALID MOVES
-  // =========================================
-
-  const validMoves = useMemo(() => {
-    if (
-      !gameState ||
-      !selected ||
-      !myColor
-    ) {
-      return [];
-    }
-
-    if (
-      gameState.turn !== myColor
-    ) {
-      return [];
-    }
-
-    return getLegalMoves(
-      gameState,
-      selected.row,
-      selected.col
-    );
-  }, [
-    gameState,
-    selected,
-    myColor,
-  ]);
-
-  // =========================================
-  // STATUS TEXT
-  // =========================================
+  }, [gameState]);
 
   function getStatusText() {
-  if (!roomData?.game?.started) {
-    return "Menunggu pemain...";
-  }
+    if (!gameState) {
+      return "";
+    }
 
-  if (!gameState) {
-    return "Memuat game...";
-  }
+    if (
+      status.gameOver &&
+      status.check
+    ) {
+      const winner =
+        status.winner === "white"
+          ? "Putih"
+          : "Hitam";
 
-  // CHECKMATE
-  if (status.gameOver && status.check) {
-    const winner =
-      gameState.turn === "white"
-        ? "Hitam"
-        : "Putih";
+      if (isBotMode) {
+        return (
+          status.winner ===
+          playerColor
+            ? `♛ SKAKMAT! Kamu menang`
+            : `♛ SKAKMAT! Bot menang`
+        );
+      }
 
-    return `SKAKMAT! ${winner} menang`;
-  }
+      return `♛ SKAKMAT! ${winner} menang`;
+    }
 
-  // STALEMATE
-  if (status.gameOver && !status.check) {
-    return "STALEMATE — REMIS";
-  }
+    if (
+      status.gameOver &&
+      !status.check
+    ) {
+      return "STALEMATE — REMIS";
+    }
 
-  // CHECK
-  if (status.check) {
+    if (status.check) {
+      const turn =
+        gameState.turn === "white"
+          ? "Putih"
+          : "Hitam";
+
+      return `⚠️ SKAK! Giliran ${turn}`;
+    }
+
+    if (
+      isBotMode &&
+      gameState.turn === botColor
+    ) {
+      return `🤖 Bot (${BOT_LEVELS[botLevel].name}) sedang berpikir...`;
+    }
+
     const turn =
       gameState.turn === "white"
         ? "Putih"
         : "Hitam";
 
-    return `SKAK! Giliran ${turn}`;
+    return `Giliran ${turn}`;
   }
 
-  return gameState.turn === "white"
-    ? "Giliran Putih"
-    : "Giliran Hitam";
-}
+  /*
+   * ================================
+   * VALID MOVES
+   * ================================
+   */
 
-  // =========================================
-  // EXECUTE MOVE
-  // =========================================
-
-  async function executeMove(
-    move,
-    promotionPiece = "queen"
-  ) {
+  const validMoves = useMemo(() => {
     if (
-      !selected ||
-      !roomId ||
       !gameState ||
-      !myColor
+      !selected
     ) {
-      return;
+      return [];
     }
 
     if (
       gameState.turn !== myColor
     ) {
-      setMessage(
-        "Bukan giliran kamu."
-      );
+      return [];
+    }
+
+    if (
+      isBotMode &&
+      botThinking
+    ) {
+      return [];
+    }
+
+    return (
+      getLegalMoves(
+        gameState,
+        selected.row,
+        selected.col
+      ) || []
+    );
+  }, [
+    gameState,
+    selected,
+    myColor,
+    isBotMode,
+    botThinking,
+  ]);
+
+  function isValidDestination(
+    row,
+    col
+  ) {
+    return validMoves.some(
+      (move) => {
+        const target =
+          getMoveTarget(move);
+
+        return (
+          target?.row === row &&
+          target?.col === col
+        );
+      }
+    );
+  }
+
+  /*
+   * ================================
+   * EXECUTE MOVE
+   * ================================
+   */
+
+  async function executeMove(
+    from,
+    move,
+    promotion = "queen"
+  ) {
+    if (!gameState) return;
+
+    if (
+      gameState.turn !== myColor
+    ) {
       return;
     }
 
-    const fromRow =
-      selected.row;
+    if (
+      status.gameOver
+    ) {
+      return;
+    }
 
-    const fromCol =
-      selected.col;
+    /*
+     * BOT MODE
+     */
 
-    setSelected(null);
-    setPendingPromotion(null);
+    if (isBotMode) {
+      const current =
+        cloneState(
+          gameState
+        );
 
-    try {
-      const gameRef = ref(
+      const next =
+        simulateMove(
+          current,
+          from,
+          move,
+          promotion
+        );
+
+      if (!next) {
+        setMessage(
+          "Langkah tidak valid."
+        );
+
+        return;
+      }
+
+      setGameState(next);
+
+      setSelected(null);
+
+      setPendingPromotion(null);
+
+      return;
+    }
+
+    /*
+     * MULTIPLAYER
+     */
+
+    if (!roomId) return;
+
+    const gameRef =
+      ref(
         db,
-        `chessRooms/${roomId}/game/state`
+        `chessRooms/${roomId}/game`
       );
 
+    let transactionError =
+      "";
+
+    const result =
       await runTransaction(
         gameRef,
-        (currentState) => {
-          const current =
-            normalizeGameState(
-              currentState
-            );
-
+        (current) => {
           if (!current) {
+            transactionError =
+              "Game belum dimulai.";
+
             return;
           }
 
+          const normalized =
+            normalizeGameState(
+              current
+            );
+
           if (
-            current.turn !==
+            normalized.turn !==
             myColor
           ) {
             return;
           }
 
-          const legalMoves =
+          const legal =
             getLegalMoves(
-              current,
-              fromRow,
-              fromCol
+              normalized,
+              from.row,
+              from.col
+            ) || [];
+
+          const selectedMove =
+            legal.find(
+              (candidate) =>
+                moveKey(
+                  from,
+                  candidate
+                ) ===
+                moveKey(
+                  from,
+                  move
+                )
             );
 
-          const legal = legalMoves.some(
-            (item) =>
-              item.row ===
-                move.row &&
-              item.col ===
-                move.col &&
-              Boolean(
-                item.promotion
-              ) ===
-                Boolean(
-                  move.promotion
-                )
-          );
+          if (!selectedMove) {
+            transactionError =
+              "Langkah tidak valid.";
 
-          if (!legal) {
             return;
           }
 
           return applyMove(
-            current,
-            fromRow,
-            fromCol,
-            move,
-            promotionPiece
+            normalized,
+            from.row,
+            from.col,
+            selectedMove,
+            promotion
           );
         }
       );
-    } catch (error) {
-      console.error(
-        "Move error:",
-        error
-      );
 
-      setMessage(
-        "Gagal menjalankan langkah."
-      );
+    if (!result.committed) {
+      if (transactionError) {
+        setMessage(
+          transactionError
+        );
+      }
+
+      return;
     }
+
+    setSelected(null);
+
+    setPendingPromotion(null);
   }
 
-  // =========================================
-  // CLICK SQUARE
-  // =========================================
+  /*
+   * ================================
+   * SQUARE CLICK
+   * ================================
+   */
 
   function handleSquareClick(
     row,
     col
   ) {
-    if (
-      !roomData?.game?.started ||
-      !gameState
-    ) {
-      return;
-    }
+    if (!gameState) return;
 
     if (status.gameOver) {
       return;
     }
 
-    if (pendingPromotion) {
+    if (
+      isBotMode &&
+      botThinking
+    ) {
       return;
     }
 
     if (
       gameState.turn !== myColor
     ) {
-      setMessage(
-        "Bukan giliran kamu."
-      );
       return;
     }
 
-    const piece =
-      gameState.board[row][col];
+    const clickedPiece =
+      gameState.board?.[row]?.[col];
 
-    // BELUM PILIH BIDAK
+    /*
+     * BELUM PILIH BIDAK
+     */
+
     if (!selected) {
-      if (!piece) {
-        return;
-      }
-
       if (
-        piece.color !== myColor
+        clickedPiece &&
+        pieceColor(clickedPiece) ===
+          myColor
       ) {
-        return;
-      }
-
-      const moves =
-        getLegalMoves(
-          gameState,
-          row,
-          col
-        );
-
-      if (moves.length === 0) {
-        return;
-      }
-
-      setSelected({
-        row,
-        col,
-      });
-
-      return;
-    }
-
-    // KLIK BIDAK SENDIRI
-    if (
-      piece &&
-      piece.color === myColor
-    ) {
-      const moves =
-        getLegalMoves(
-          gameState,
-          row,
-          col
-        );
-
-      if (moves.length > 0) {
         setSelected({
           row,
           col,
@@ -966,543 +1268,1251 @@ export function Chess() {
       return;
     }
 
-    // CARI MOVE
-    const move =
-      validMoves.find(
-        (item) =>
-          item.row === row &&
-          item.col === col
-      );
+    /*
+     * KLIK BIDAK SENDIRI
+     */
 
-    if (!move) {
-      return;
-    }
-
-    // PROMOTION
-    if (move.promotion) {
-      setPendingPromotion({
-        move,
-        from: selected,
+    if (
+      clickedPiece &&
+      pieceColor(clickedPiece) ===
+        myColor
+    ) {
+      setSelected({
+        row,
+        col,
       });
 
       return;
     }
 
-    executeMove(move);
+    /*
+     * CEK TUJUAN
+     */
+
+    const move =
+      validMoves.find(
+        (candidate) => {
+          const target =
+            getMoveTarget(
+              candidate
+            );
+
+          return (
+            target?.row === row &&
+            target?.col === col
+          );
+        }
+      );
+
+    if (!move) {
+      setSelected(null);
+      return;
+    }
+
+    /*
+     * PROMOSI
+     */
+
+    const movingPiece =
+      gameState.board?.[
+        selected.row
+      ]?.[selected.col];
+
+    const type =
+      pieceType(
+        movingPiece
+      );
+
+    const isPromotion =
+      type === "pawn" &&
+      (row === 0 ||
+        row === 7);
+
+    if (isPromotion) {
+      setPendingPromotion({
+        from: selected,
+        move,
+      });
+
+      return;
+    }
+
+    executeMove(
+      selected,
+      move
+    );
   }
 
-  // =========================================
-  // RESET
-  // =========================================
+  /*
+   * ================================
+   * PROMOTION
+   * ================================
+   */
 
-  async function resetGame() {
-    if (!roomId) {
+  function choosePromotion(
+    promotion
+  ) {
+    if (!pendingPromotion) {
+      return;
+    }
+
+    executeMove(
+      pendingPromotion.from,
+      pendingPromotion.move,
+      promotion
+    );
+  }
+
+  /*
+   * ================================
+   * BOT TURN
+   * ================================
+   */
+
+  useEffect(() => {
+    if (!isBotMode) {
+      return;
+    }
+
+    if (!gameState) {
+      return;
+    }
+
+    if (status.gameOver) {
       return;
     }
 
     if (
-      roomData?.host !== playerId
+      gameState.turn !== botColor
     ) {
-      setMessage(
-        "Hanya host yang bisa reset game."
-      );
       return;
     }
 
-    try {
-      await update(
-        ref(
-          db,
-          `chessRooms/${roomId}/game`
-        ),
-        {
-          started: false,
-          state: null,
+    if (botBusyRef.current) {
+      return;
+    }
+
+    botBusyRef.current = true;
+
+    setBotThinking(true);
+
+    const delay =
+      botLevel === "easy"
+        ? 450
+        : botLevel === "normal"
+        ? 650
+        : 850;
+
+    botTimerRef.current =
+      setTimeout(() => {
+        try {
+          const current =
+            cloneState(
+              gameState
+            );
+
+          const moves =
+            allLegalMovesForColor(
+              current,
+              botColor
+            );
+
+          if (!moves.length) {
+            return;
+          }
+
+          let chosen;
+
+          if (
+            botLevel === "easy"
+          ) {
+            chosen =
+              chooseEasyMove(
+                current,
+                moves
+              );
+          } else if (
+            botLevel === "normal"
+          ) {
+            chosen =
+              chooseNormalMove(
+                current,
+                moves,
+                botColor
+              );
+          } else {
+            chosen =
+              chooseHardMove(
+                current,
+                moves,
+                botColor
+              );
+          }
+
+          if (!chosen) {
+            chosen =
+              chooseRandomMove(
+                moves
+              );
+          }
+
+          if (chosen) {
+            const target =
+              getMoveTarget(
+                chosen.move
+              );
+
+            const movingPiece =
+              current.board?.[
+                chosen.from.row
+              ]?.[
+                chosen.from.col
+              ];
+
+            const type =
+              pieceType(
+                movingPiece
+              );
+
+            let promotion =
+              "queen";
+
+            if (
+              type === "pawn" &&
+              target &&
+              (target.row === 0 ||
+                target.row === 7)
+            ) {
+              promotion = "queen";
+            }
+
+            const next =
+              simulateMove(
+                current,
+                chosen.from,
+                chosen.move,
+                promotion
+              );
+
+            if (next) {
+              setGameState(next);
+            }
+          }
+        } catch (error) {
+          console.error(
+            "Bot error:",
+            error
+          );
+        } finally {
+          botBusyRef.current =
+            false;
+
+          setBotThinking(false);
         }
-      );
+      }, delay);
 
-      setSelected(null);
-      setPendingPromotion(null);
+    return () => {
+      if (
+        botTimerRef.current
+      ) {
+        clearTimeout(
+          botTimerRef.current
+        );
+      }
 
-      setMessage(
-        "Game di-reset. Pilih kursi lagi untuk memulai."
-      );
-    } catch (error) {
-      console.error(
-        "Reset error:",
-        error
-      );
+      botTimerRef.current =
+        null;
+    };
+  }, [
+    isBotMode,
+    gameState,
+    botColor,
+    botLevel,
+    status.gameOver,
+  ]);
 
-      setMessage(
-        "Gagal reset game."
+  /*
+   * ================================
+   * RESET BOT GAME
+   * ================================
+   */
+
+  function resetBotGame() {
+    if (
+      botTimerRef.current
+    ) {
+      clearTimeout(
+        botTimerRef.current
       );
     }
+
+    botBusyRef.current =
+      false;
+
+    setBotThinking(false);
+
+    setGameState(
+      createInitialState()
+    );
+
+    setSelected(null);
+
+    setPendingPromotion(null);
   }
 
-  // =========================================
-  // CHECKED KING
-  // =========================================
+  /*
+   * ================================
+   * RESET PVP GAME
+   * ================================
+   */
+
+  async function resetPvPGame() {
+    if (
+      !roomId ||
+      !roomData
+    ) {
+      return;
+    }
+
+    if (
+      roomData.hostId !==
+      playerId
+    ) {
+      return;
+    }
+
+    await set(
+      ref(
+        db,
+        `chessRooms/${roomId}/game`
+      ),
+      createInitialState()
+    );
+
+    setSelected(null);
+
+    setPendingPromotion(null);
+  }
+
+  /*
+   * ================================
+   * CHECKED KING
+   * ================================
+   */
 
   const checkedKing =
-    status.check &&
-    gameState
-      ? findKing(
+    useMemo(() => {
+      if (
+        !gameState ||
+        !status.check
+      ) {
+        return null;
+      }
+
+      const checkedColor =
+        gameState.turn;
+
+      try {
+        return findKing(
           gameState.board,
-          gameState.turn
-        )
-      : null;
+          checkedColor
+        );
+      } catch {
+        return null;
+      }
+    }, [
+      gameState,
+      status.check,
+    ]);
 
-  // =========================================
-  // NO ROOM
-  // =========================================
+  /*
+   * ================================
+   * MODE SELECT
+   * ================================
+   */
 
-  if (!roomId) {
+  if (
+    mode === "select"
+  ) {
     return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: BG,
-          color: CREAM,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          boxSizing: "border-box",
-          fontFamily:
-            "system-ui, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "420px",
-            background:
-              "rgba(255,255,255,0.06)",
-            border:
-              "1px solid rgba(201,162,39,0.35)",
-            borderRadius: "16px",
-            padding: "24px",
-            boxSizing: "border-box",
-            textAlign: "center",
-          }}
-        >
+      <Page>
+        <Panel maxWidth={500}>
           <div
             style={{
+              fontSize: 58,
+              marginBottom: 8,
+            }}
+          >
+            ♟️
+          </div>
+
+          <h1
+            style={{
+              margin: 0,
               color: GOLD,
               fontFamily:
                 "Georgia, serif",
-              fontSize: "34px",
-              fontWeight: 700,
-              marginBottom: "8px",
             }}
           >
-            ♟ Chess
+            Chess
+          </h1>
+
+          <p
+            style={{
+              opacity: 0.75,
+              fontSize: 13,
+              marginTop: 8,
+            }}
+          >
+            Pilih cara bermain
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "1fr 1fr",
+              gap: 10,
+              marginTop: 22,
+            }}
+          >
+            <ModeButton
+              active={false}
+              onClick={() => {
+                setMode("pvp");
+              }}
+            >
+              👥
+              <span>
+                MULTIPLAYER
+              </span>
+            </ModeButton>
+
+            <ModeButton
+              active
+              onClick={() => {
+                setMode("bot");
+              }}
+            >
+              🤖
+              <span>
+                VS BOT
+              </span>
+            </ModeButton>
           </div>
 
           <div
             style={{
-              fontSize: "14px",
-              opacity: 0.75,
-              marginBottom: "20px",
-              lineHeight: 1.5,
+              marginTop: 24,
+              padding: 18,
+              borderRadius: 16,
+              background:
+                "rgba(201,162,39,0.08)",
+              border:
+                "1px solid rgba(201,162,39,0.25)",
             }}
           >
-            Masukkan kode room
-            untuk bermain dengan
-            teman, atau buat room
-            baru.
+            <div
+              style={{
+                fontWeight: 900,
+                color: GOLD,
+                marginBottom: 12,
+              }}
+            >
+              🤖 VS BOT
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.7,
+                marginBottom: 10,
+              }}
+            >
+              Pilih level bot
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(3, 1fr)",
+                gap: 8,
+              }}
+            >
+              {Object.entries(
+                BOT_LEVELS
+              ).map(
+                ([
+                  key,
+                  value,
+                ]) => (
+                  <button
+                    key={key}
+                    onClick={() =>
+                      setBotLevel(
+                        key
+                      )
+                    }
+                    style={{
+                      ...smallChoice,
+                      border:
+                        botLevel ===
+                        key
+                          ? `2px solid ${GOLD}`
+                          : "1px solid rgba(201,162,39,0.25)",
+                      background:
+                        botLevel ===
+                        key
+                          ? "rgba(201,162,39,0.16)"
+                          : "#14110F",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 20,
+                      }}
+                    >
+                      {
+                        value.emoji
+                      }
+                    </div>
+
+                    <div>
+                      {
+                        value.name
+                      }
+                    </div>
+                  </button>
+                )
+              )}
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.7,
+                marginTop: 18,
+                marginBottom: 10,
+              }}
+            >
+              Pilih warna kamu
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "1fr 1fr",
+                gap: 8,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setPlayerColor(
+                    "white"
+                  );
+
+                  setBotColor(
+                    "black"
+                  );
+                }}
+                style={{
+                  ...smallChoice,
+                  border:
+                    playerColor ===
+                    "white"
+                      ? `2px solid ${GOLD}`
+                      : "1px solid rgba(201,162,39,0.25)",
+                  background:
+                    playerColor ===
+                    "white"
+                      ? "rgba(201,162,39,0.16)"
+                      : "#14110F",
+                }}
+              >
+                ⚪ Putih
+              </button>
+
+              <button
+                onClick={() => {
+                  setPlayerColor(
+                    "black"
+                  );
+
+                  setBotColor(
+                    "white"
+                  );
+                }}
+                style={{
+                  ...smallChoice,
+                  border:
+                    playerColor ===
+                    "black"
+                      ? `2px solid ${GOLD}`
+                      : "1px solid rgba(201,162,39,0.25)",
+                  background:
+                    playerColor ===
+                    "black"
+                      ? "rgba(201,162,39,0.16)"
+                      : "#14110F",
+                }}
+              >
+                ⚫ Hitam
+              </button>
+            </div>
+
+            <button
+              style={{
+                ...primaryButton,
+                marginTop: 18,
+              }}
+              onClick={
+                startBotGame
+              }
+            >
+              🤖 Mulai VS Bot
+            </button>
+          </div>
+
+          <button
+            style={{
+              ...secondaryButton,
+              marginTop: 10,
+            }}
+            onClick={() => {
+              window.history.back();
+            }}
+          >
+            ← Kembali
+          </button>
+        </Panel>
+      </Page>
+    );
+  }
+
+  /*
+   * ================================
+   * PVP ROOM SCREEN
+   * ================================
+   */
+
+  if (
+    isPvP &&
+    !roomId
+  ) {
+    return (
+      <Page>
+        <Panel maxWidth={470}>
+          <div
+            style={{
+              fontSize: 54,
+            }}
+          >
+            ♟️
+          </div>
+
+          <h1
+            style={{
+              margin:
+                "8px 0 5px",
+              color: GOLD,
+              fontFamily:
+                "Georgia, serif",
+            }}
+          >
+            Chess Multiplayer
+          </h1>
+
+          <p
+            style={{
+              fontSize: 13,
+              opacity: 0.7,
+              marginBottom: 22,
+            }}
+          >
+            Buat room baru atau
+            masukkan kode room
+            temanmu.
+          </p>
+
+          <button
+            style={primaryButton}
+            onClick={
+              createRoom
+            }
+            disabled={loading}
+          >
+            🎮 Buat Room Baru
+          </button>
+
+          <div
+            style={{
+              margin:
+                "16px 0 10px",
+              fontSize: 11,
+              opacity: 0.55,
+            }}
+          >
+            ATAU
           </div>
 
           <input
             value={roomInput}
             onChange={(e) =>
               setRoomInput(
-                e.target.value
+                e.target.value.toUpperCase()
               )
             }
             onKeyDown={(e) => {
               if (
                 e.key === "Enter"
               ) {
-                if (
-                  roomInput.trim()
-                ) {
-                  joinRoom();
-                } else {
-                  createRoom();
-                }
+                joinRoom();
               }
             }}
-            placeholder="Kode room"
-            style={{
-              width: "100%",
-              boxSizing:
-                "border-box",
-              padding:
-                "13px 14px",
-              borderRadius: "9px",
-              border:
-                `1px solid ${GOLD}`,
-              background:
-                "rgba(0,0,0,0.25)",
-              color: CREAM,
-              outline: "none",
-              textAlign: "center",
-              textTransform:
-                "uppercase",
-              fontSize: "16px",
-              marginBottom: "12px",
-            }}
+            maxLength={6}
+            placeholder="CONTOH: ABC123"
+            style={inputStyle}
           />
 
           <button
-            type="button"
+            style={secondaryButton}
             onClick={
-              roomInput.trim()
-                ? joinRoom
-                : createRoom
+              joinRoom
             }
             disabled={loading}
-            style={{
-              width: "100%",
-              padding:
-                "13px 16px",
-              border: "none",
-              borderRadius: "9px",
-              background: GOLD,
-              color: "#17100c",
-              fontWeight: 700,
-              fontSize: "15px",
-              cursor: loading
-                ? "wait"
-                : "pointer",
-            }}
           >
-            {loading
-              ? "Memproses..."
-              : roomInput.trim()
-              ? "Gabung Room"
-              : "Buat Room Baru"}
+            🔑 Gabung Room
           </button>
 
           {message && (
-            <div
-              style={{
-                marginTop: "14px",
-                fontSize: "13px",
-                color: "#ffd98a",
-              }}
-            >
+            <Message>
               {message}
-            </div>
+            </Message>
           )}
 
           <button
-            type="button"
-            onClick={() => {
-              window.location.href =
-                window.location.pathname;
-            }}
             style={{
-              marginTop: "14px",
-              background:
-                "transparent",
-              color: CREAM,
-              border:
-                `1px solid ${GOLD}`,
-              borderRadius: "9px",
-              padding:
-                "10px 15px",
-              cursor: "pointer",
+              ...backButton,
+              marginTop: 10,
+            }}
+            onClick={() => {
+              setMode(
+                "select"
+              );
+              clearRoomUrl();
             }}
           >
-            ← Kembali ke Game Hub
+            ← Kembali
           </button>
-        </div>
-      </div>
+        </Panel>
+      </Page>
     );
   }
 
-  // =========================================
-  // ROOM NOT FOUND / LOADING
-  // =========================================
+  /*
+   * ================================
+   * PVP ROOM LOADING
+   * ================================
+   */
 
   if (
-    loading &&
+    isPvP &&
+    roomId &&
     !roomData
   ) {
     return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: BG,
-          color: CREAM,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            "system-ui, sans-serif",
-        }}
-      >
-        Memuat room...
-      </div>
+      <Page>
+        <Panel>
+          <div
+            style={{
+              fontSize: 36,
+            }}
+          >
+            ⏳
+          </div>
+
+          <h2
+            style={{
+              color: GOLD,
+            }}
+          >
+            Memuat Room...
+          </h2>
+
+          <div
+            style={{
+              fontSize: 13,
+              opacity: 0.7,
+            }}
+          >
+            Room:{" "}
+            <b>{roomId}</b>
+          </div>
+        </Panel>
+      </Page>
     );
   }
 
-  if (!roomData) {
+  /*
+   * ================================
+   * PVP LOBBY
+   * ================================
+   */
+
+  if (
+    isPvP &&
+    roomId &&
+    roomData &&
+    !gameState
+  ) {
+    const players =
+      roomData.players || {};
+
+    const white =
+      players.white;
+
+    const black =
+      players.black;
+
+    const isHost =
+      roomData.hostId ===
+      playerId;
+
     return (
+      <Page>
+        <Panel maxWidth={500}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                textAlign:
+                  "left",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  opacity: 0.55,
+                  letterSpacing: 2,
+                }}
+              >
+                ROOM CODE
+              </div>
+
+              <div
+                style={{
+                  color: GOLD,
+                  fontWeight: 900,
+                  fontSize: 24,
+                  letterSpacing: 4,
+                }}
+              >
+                {roomId}
+              </div>
+            </div>
+
+            <button
+              style={
+                smallBack
+              }
+              onClick={() => {
+                clearRoomUrl();
+                setRoomData(
+                  null
+                );
+                setMode(
+                  "select"
+                );
+              }}
+            >
+              ← Keluar
+            </button>
+          </div>
+
+          <div
+            style={{
+              height: 1,
+              background:
+                "rgba(201,162,39,0.2)",
+              margin:
+                "20px 0",
+            }}
+          />
+
+          <h2
+            style={{
+              marginTop: 0,
+              color: GOLD,
+              fontFamily:
+                "Georgia, serif",
+            }}
+          >
+            Lobby Chess
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "1fr 1fr",
+              gap: 10,
+              marginTop: 18,
+            }}
+          >
+            <PlayerSeat
+              color="white"
+              player={white}
+              mine={
+                white?.id ===
+                playerId
+              }
+            />
+
+            <PlayerSeat
+              color="black"
+              player={black}
+              mine={
+                black?.id ===
+                playerId
+              }
+            />
+          </div>
+
+          <div
+            style={{
+              marginTop: 18,
+              padding: 12,
+              borderRadius: 12,
+              background:
+                "rgba(255,255,255,0.04)",
+              fontSize: 12,
+              opacity: 0.75,
+            }}
+          >
+            Bagikan kode{" "}
+            <b
+              style={{
+                color: GOLD,
+              }}
+            >
+              {roomId}
+            </b>{" "}
+            kepada temanmu.
+          </div>
+
+          {isHost ? (
+            <button
+              style={{
+                ...primaryButton,
+                marginTop: 15,
+              }}
+              disabled={
+                !white ||
+                !black
+              }
+              onClick={
+                startPvPGame
+              }
+            >
+              ♟️ Mulai Game
+            </button>
+          ) : (
+            <div
+              style={{
+                marginTop: 15,
+                padding: 14,
+                borderRadius: 12,
+                background:
+                  "rgba(201,162,39,0.08)",
+                fontSize: 12,
+              }}
+            >
+              ⏳ Menunggu host
+              memulai game...
+            </div>
+          )}
+
+          {message && (
+            <Message>
+              {message}
+            </Message>
+          )}
+        </Panel>
+      </Page>
+    );
+  }
+
+  /*
+   * ================================
+   * GAME
+   * ================================
+   */
+
+  if (!gameState) {
+    return null;
+  }
+
+  const board =
+    gameState.board || [];
+
+  const displayRows =
+    myColor === "black"
+      ? [...Array(8).keys()].reverse()
+      : [...Array(8).keys()];
+
+  const displayCols =
+    myColor === "black"
+      ? [...Array(8).keys()].reverse()
+      : [...Array(8).keys()];
+
+  const isHost =
+    isPvP &&
+    roomData?.hostId ===
+      playerId;
+
+  return (
+    <Page alignTop>
       <div
         style={{
-          minHeight: "100dvh",
-          background: BG,
-          color: CREAM,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          boxSizing: "border-box",
-          fontFamily:
-            "system-ui, sans-serif",
+          width: "100%",
+          maxWidth: 760,
+          margin: "0 auto",
         }}
       >
         <div
           style={{
-            textAlign: "center",
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
           }}
         >
-          <div
-            style={{
-              color: GOLD,
-              fontSize: "26px",
-              fontWeight: 700,
-              marginBottom: "10px",
-            }}
-          >
-            Room tidak ditemukan
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                opacity: 0.55,
+                letterSpacing: 2,
+              }}
+            >
+              CHESS
+            </div>
+
+            <div
+              style={{
+                color: GOLD,
+                fontWeight: 900,
+              }}
+            >
+              {isBotMode
+                ? `VS BOT • ${BOT_LEVELS[botLevel].name}`
+                : `ROOM ${roomId}`}
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={leaveRoom}
+          <div
             style={{
-              background: GOLD,
-              border: "none",
-              borderRadius: "8px",
               padding:
-                "11px 18px",
-              fontWeight: 700,
-              cursor: "pointer",
+                "8px 12px",
+              borderRadius: 10,
+              background:
+                "rgba(201,162,39,0.1)",
+              border:
+                "1px solid rgba(201,162,39,0.25)",
+              fontSize: 12,
             }}
           >
-            Kembali
-          </button>
+            Kamu:{" "}
+            <b
+              style={{
+                color: GOLD,
+              }}
+            >
+              {myColor ===
+              "white"
+                ? "Putih"
+                : "Hitam"}
+            </b>
+          </div>
         </div>
-      </div>
-    );
-  }
 
-  // =========================================
-  // GAME STARTED
-  // =========================================
+        <div
+          style={{
+            padding: 12,
+            borderRadius: 14,
+            background:
+              status.gameOver
+                ? "rgba(201,162,39,0.16)"
+                : "rgba(255,255,255,0.04)",
+            border:
+              "1px solid rgba(201,162,39,0.25)",
+            textAlign: "center",
+            fontWeight: 900,
+            color: status.gameOver
+              ? GOLD
+              : CREAM,
+            marginBottom: 12,
+          }}
+        >
+          {getStatusText()}
+        </div>
 
-  const gameStarted =
-    roomData.game?.started ===
-    true;
-
-  // =========================================
-  // BOARD
-  // =========================================
-
-  function renderBoard() {
-    if (!gameState) {
-      return null;
-    }
-
-    return (
-      <div
-        style={{
-          width: "90vw",
-          maxWidth: "560px",
-          aspectRatio: "1 / 1",
-          margin: "0 auto",
-          boxSizing: "border-box",
-          flexShrink: 0,
-        }}
-      >
         <div
           style={{
             width: "100%",
-            height: "100%",
+            maxWidth: 620,
+            margin: "0 auto",
+            aspectRatio: "1 / 1",
             display: "grid",
             gridTemplateColumns:
               "repeat(8, 1fr)",
-            gridTemplateRows:
-              "repeat(8, 1fr)",
             border:
-              `3px solid ${GOLD}`,
-            borderRadius: "4px",
+              `4px solid ${GOLD}`,
+            borderRadius: 8,
             overflow: "hidden",
-            boxSizing: "border-box",
             boxShadow:
-              "0 8px 25px rgba(0,0,0,0.35)",
+              "0 20px 60px rgba(0,0,0,0.5)",
           }}
         >
-          {Array.from(
-            { length: 8 },
-            (_, displayRow) => {
-              const actualRow =
-                myColor === "black"
-                  ? 7 - displayRow
-                  : displayRow;
-
-              return Array.from(
-                { length: 8 },
-                (_, displayCol) => {
-                  const actualCol =
-                    myColor === "black"
-                      ? 7 - displayCol
-                      : displayCol;
-
+          {displayRows.flatMap(
+            (row) =>
+              displayCols.map(
+                (col) => {
                   const piece =
-                    gameState.board[
-                      actualRow
-                    ][actualCol];
+                    board?.[row]?.[
+                      col
+                    ];
 
-                  const isDark =
-                    (displayRow +
-                      displayCol) %
+                  const selectedHere =
+                    selected?.row ===
+                      row &&
+                    selected?.col ===
+                      col;
+
+                  const validHere =
+                    isValidDestination(
+                      row,
+                      col
+                    );
+
+                  const checkedHere =
+                    checkedKing?.row ===
+                      row &&
+                    checkedKing?.col ===
+                      col;
+
+                  const dark =
+                    (row + col) %
                       2 ===
                     1;
 
-                  const isSelected =
-                    selected?.row ===
-                      actualRow &&
-                    selected?.col ===
-                      actualCol;
-
-                  const isValidMove =
-                    validMoves.some(
-                      (move) =>
-                        move.row ===
-                          actualRow &&
-                        move.col ===
-                          actualCol
-                    );
-
-                  const selectedPiece =
-                    selected
-                      ? gameState
-                          .board[
-                          selected.row
-                        ]?.[
-                          selected.col
-                        ]
-                      : null;
-
-                  const hasEnemyPiece =
-                    Boolean(
-                      piece &&
-                        selectedPiece &&
-                        piece.color !==
-                          selectedPiece.color
-                    );
-
-                  const isCheckedKing =
-                    Boolean(
-                      checkedKing &&
-                        checkedKing.row ===
-                          actualRow &&
-                        checkedKing.col ===
-                          actualCol
-                    );
-
                   return (
                     <button
-                      key={`${actualRow}-${actualCol}`}
-                      type="button"
+                      key={`${row}-${col}`}
                       onClick={() =>
                         handleSquareClick(
-                          actualRow,
-                          actualCol
+                          row,
+                          col
                         )
                       }
                       style={{
-                        width: "100%",
-                        height: "100%",
-                        minWidth: 0,
-                        minHeight: 0,
+                        position:
+                          "relative",
                         border: "none",
-                        borderRadius: 0,
                         padding: 0,
                         margin: 0,
-
+                        aspectRatio:
+                          "1 / 1",
+                        cursor:
+                          gameState.turn ===
+                            myColor &&
+                          !status.gameOver
+                            ? "pointer"
+                            : "default",
                         background:
-                          isCheckedKing
-                            ? "#b33a3a"
-                            : isSelected
-                            ? GOLD
-                            : isDark
-                            ? "#8B6F47"
-                            : "#F0D9B5",
-
-                        display: "flex",
+                          checkedHere
+                            ? "#8d2b22"
+                            : selectedHere
+                            ? "#b68a20"
+                            : dark
+                            ? "#6B4226"
+                            : "#D8B878",
+                        display:
+                          "flex",
                         alignItems:
                           "center",
                         justifyContent:
                           "center",
-
-                        cursor:
-                          status.gameOver ||
-                          pendingPromotion
-                            ? "default"
-                            : "pointer",
-
                         userSelect:
                           "none",
-
-                        WebkitTapHighlightColor:
-                          "transparent",
-
-                        boxSizing:
-                          "border-box",
-
-                        position:
-                          "relative",
                       }}
                     >
+                      {validHere && (
+                        <div
+                          style={{
+                            position:
+                              "absolute",
+                            width:
+                              piece
+                                ? "72%"
+                                : "22%",
+                            height:
+                              piece
+                                ? "72%"
+                                : "22%",
+                            borderRadius:
+                              "50%",
+                            background:
+                              piece
+                                ? "transparent"
+                                : "rgba(20,17,15,0.5)",
+                            border:
+                              piece
+                                ? `4px solid rgba(201,162,39,0.9)`
+                                : "none",
+                            zIndex: 1,
+                            pointerEvents:
+                              "none",
+                          }}
+                        />
+                      )}
+
                       {piece && (
                         <span
                           style={{
-                            display:
-                              "block",
-
-                            fontSize:
-                              "clamp(30px, 7vw, 58px)",
-
-                            lineHeight: 1,
-
-                            transform:
-                              "translateY(-1px)",
-
-                            color:
-                              piece.color ===
-                              "white"
-                                ? "#ffffff"
-                                : "#111111",
-
-                            textShadow:
-                              piece.color ===
-                              "white"
-                                ? "0 1px 2px rgba(0,0,0,0.8)"
-                                : "0 1px 1px rgba(255,255,255,0.8)",
-
-                            pointerEvents:
-                              "none",
-
                             position:
                               "relative",
-
                             zIndex: 2,
+                            fontSize:
+                              "clamp(30px, 7vw, 58px)",
+                            lineHeight: 1,
+                            filter:
+                              "drop-shadow(0 2px 1px rgba(0,0,0,0.45))",
+                            color:
+                              pieceColor(
+                                piece
+                              ) ===
+                              "white"
+                                ? "#F5EFE0"
+                                : "#17110E",
+                            textShadow:
+                              pieceColor(
+                                piece
+                              ) ===
+                              "white"
+                                ? "0 2px 2px rgba(0,0,0,.8)"
+                                : "0 1px 1px rgba(255,255,255,.35)",
                           }}
                         >
                           {getPieceSymbol(
@@ -1511,52 +2521,276 @@ export function Chess() {
                         </span>
                       )}
 
-                      {isValidMove && (
+                      {row ===
+                        displayRows[0] && (
                         <span
                           style={{
                             position:
                               "absolute",
-
-                            width:
-                              hasEnemyPiece
-                                ? "78%"
-                                : "24%",
-
-                            height:
-                              hasEnemyPiece
-                                ? "78%"
-                                : "24%",
-
-                            borderRadius:
-                              "50%",
-
-                            background:
-                              hasEnemyPiece
-                                ? "rgba(190,40,40,0.35)"
-                                : "rgba(30,30,30,0.35)",
-
+                            top: 2,
+                            left: 4,
+                            fontSize: 9,
+                            opacity:
+                              0.45,
                             pointerEvents:
                               "none",
-
-                            zIndex: 1,
                           }}
-                        />
+                        >
+                          {8 -
+                            row}
+                        </span>
+                      )}
+
+                      {col ===
+                        displayCols[7] && (
+                        <span
+                          style={{
+                            position:
+                              "absolute",
+                            bottom: 2,
+                            right: 4,
+                            fontSize: 9,
+                            opacity:
+                              0.45,
+                            pointerEvents:
+                              "none",
+                          }}
+                        >
+                          {String.fromCharCode(
+                            97 + col
+                          )}
+                        </span>
                       )}
                     </button>
                   );
                 }
-              );
-            }
+              )
+          )}
+        </div>
+
+        <div
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            background:
+              "rgba(255,255,255,0.04)",
+            textAlign: "center",
+            fontSize: 12,
+            opacity: 0.75,
+          }}
+        >
+          {gameState.message ||
+            "Pilih bidak untuk melihat langkah yang tersedia."}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent:
+              "center",
+            flexWrap: "wrap",
+            marginTop: 12,
+          }}
+        >
+          {isBotMode && (
+            <>
+              <button
+                style={
+                  secondaryButton
+                }
+                onClick={
+                  resetBotGame
+                }
+              >
+                🔄 Rematch
+              </button>
+
+              <button
+                style={
+                  secondaryButton
+                }
+                onClick={
+                  returnToModeSelect
+                }
+              >
+                ← Pilih Mode
+              </button>
+            </>
+          )}
+
+          {isPvP && (
+            <>
+              {isHost && (
+                <button
+                  style={
+                    secondaryButton
+                  }
+                  onClick={
+                    resetPvPGame
+                  }
+                >
+                  🔄 Reset Game
+                </button>
+              )}
+
+              <button
+                style={
+                  secondaryButton
+                }
+                onClick={() => {
+                  clearRoomUrl();
+
+                  setRoomData(
+                    null
+                  );
+
+                  setGameState(
+                    null
+                  );
+
+                  setMode(
+                    "select"
+                  );
+                }}
+              >
+                ← Keluar Room
+              </button>
+            </>
           )}
         </div>
       </div>
-    );
-  }
 
-  // =========================================
-  // MAIN UI
-  // =========================================
+      {pendingPromotion && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background:
+              "rgba(0,0,0,0.72)",
+            display: "flex",
+            alignItems:
+              "center",
+            justifyContent:
+              "center",
+            zIndex: 100,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 360,
+              background:
+                "#211813",
+              border:
+                "1px solid rgba(201,162,39,0.5)",
+              borderRadius: 18,
+              padding: 22,
+              textAlign: "center",
+              boxShadow:
+                "0 25px 80px rgba(0,0,0,0.6)",
+            }}
+          >
+            <h2
+              style={{
+                marginTop: 0,
+                color: GOLD,
+                fontFamily:
+                  "Georgia, serif",
+              }}
+            >
+              ♛ Pilih Promosi
+            </h2>
 
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(4, 1fr)",
+                gap: 8,
+              }}
+            >
+              {PROMOTION_OPTIONS.map(
+                (option) => (
+                  <button
+                    key={
+                      option.type
+                    }
+                    onClick={() =>
+                      choosePromotion(
+                        option.type
+                      )
+                    }
+                    style={{
+                      border:
+                        "1px solid rgba(201,162,39,0.35)",
+                      borderRadius: 12,
+                      background:
+                        "#14110F",
+                      color: CREAM,
+                      padding:
+                        "12px 6px",
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 32,
+                      }}
+                    >
+                      {
+                        option.label
+                      }
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 10,
+                        marginTop: 5,
+                      }}
+                    >
+                      {
+                        option.name
+                      }
+                    </div>
+                  </button>
+                )
+              )}
+            </div>
+
+            <button
+              style={{
+                ...secondaryButton,
+                marginTop: 12,
+              }}
+              onClick={() => {
+                setPendingPromotion(
+                  null
+                );
+              }}
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
+    </Page>
+  );
+}
+
+/*
+ * ========================================
+ * COMPONENTS
+ * ========================================
+ */
+
+function Page({
+  children,
+  alignTop = false,
+}) {
   return (
     <div
       style={{
@@ -1564,765 +2798,272 @@ export function Chess() {
         width: "100%",
         background: BG,
         color: CREAM,
-        boxSizing: "border-box",
-        padding:
-          "clamp(12px, 3vw, 28px) 12px 24px",
-        overflowX: "hidden",
+        display: "flex",
+        justifyContent:
+          "center",
+        alignItems: alignTop
+          ? "flex-start"
+          : "center",
+        padding: 20,
+        boxSizing:
+          "border-box",
         fontFamily:
-          "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          "Arial, Helvetica, sans-serif",
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "620px",
-          margin: "0 auto",
-          display: "flex",
-          flexDirection:
-            "column",
-          alignItems: "center",
-        }}
-      >
-        {/* HEADER */}
-
-        <div
-          style={{
-            textAlign: "center",
-            marginBottom: "12px",
-          }}
-        >
-          <div
-            style={{
-              color: GOLD,
-              fontFamily:
-                "Georgia, serif",
-              fontSize:
-                "clamp(28px, 5vw, 40px)",
-              fontWeight: 700,
-              lineHeight: 1.1,
-            }}
-          >
-            ♟ Chess
-          </div>
-
-          {gameStarted && (
-            <div
-              style={{
-                marginTop: "6px",
-                fontSize:
-                  "clamp(15px, 3vw, 19px)",
-                fontWeight: 700,
-                color:
-                  status.status ===
-                  "checkmate"
-                    ? "#ff6b6b"
-                    : status.status ===
-                      "check"
-                    ? "#ffb347"
-                    : CREAM,
-              }}
-            >
-              {getStatusText()}
-            </div>
-          )}
-        </div>
-
-        {/* ROOM BAR */}
-
-        <div
-          style={{
-            width: "90vw",
-            maxWidth: "680px",
-            display: "grid",
-            gridTemplateColumns:
-              "1fr auto 1fr",
-            alignItems: "center",
-            gap: "8px",
-            marginBottom: "10px",
-          }}
-        >
-          <div
-            style={{
-              justifySelf:
-                "start",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                !gameStarted &&
-                takeSeat("white")
-              }
-              style={{
-                background:
-                  myColor === "white"
-                    ? "#2c2521"
-                    : "rgba(255,255,255,0.06)",
-                color: CREAM,
-                border: "none",
-                borderRadius: "9px",
-                padding:
-                  "9px 13px",
-                fontWeight: 700,
-                cursor:
-                  gameStarted
-                    ? "default"
-                    : "pointer",
-                opacity:
-                  roomData.players
-                    ?.white &&
-                  myColor !==
-                    "white"
-                    ? 0.5
-                    : 1,
-              }}
-            >
-              ♔ PUTIH
-            </button>
-          </div>
-
-          <div
-            style={{
-              textAlign: "center",
-              fontSize: "12px",
-              opacity: 0.65,
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            ROOM {roomId}
-          </div>
-
-          <div
-            style={{
-              justifySelf:
-                "end",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                !gameStarted &&
-                takeSeat("black")
-              }
-              style={{
-                background:
-                  myColor === "black"
-                    ? GOLD
-                    : "rgba(255,255,255,0.06)",
-                color:
-                  myColor === "black"
-                    ? "#17100c"
-                    : CREAM,
-                border: "none",
-                borderRadius: "9px",
-                padding:
-                  "9px 13px",
-                fontWeight: 700,
-                cursor:
-                  gameStarted
-                    ? "default"
-                    : "pointer",
-                opacity:
-                  roomData.players
-                    ?.black &&
-                  myColor !==
-                    "black"
-                    ? 0.5
-                    : 1,
-              }}
-            >
-              ♜ HITAM
-              {myColor ===
-                "black" &&
-                "•"}
-            </button>
-          </div>
-        </div>
-
-        {/* LOBBY */}
-
-        {!gameStarted && (
-          <div
-            style={{
-              width: "90vw",
-              maxWidth: "560px",
-              background:
-                "rgba(255,255,255,0.06)",
-              border:
-                "1px solid rgba(201,162,39,0.3)",
-              borderRadius: "14px",
-              padding: "16px",
-              boxSizing:
-                "border-box",
-              marginBottom: "14px",
-            }}
-          >
-            <div
-              style={{
-                textAlign:
-                  "center",
-                fontWeight: 700,
-                marginBottom:
-                  "12px",
-              }}
-            >
-              Lobby Chess
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "1fr 1fr",
-                gap: "10px",
-              }}
-            >
-              <div
-                style={{
-                  background:
-                    "rgba(255,255,255,0.05)",
-                  borderRadius:
-                    "10px",
-                  padding: "12px",
-                  textAlign:
-                    "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize:
-                      "13px",
-                    marginBottom:
-                      "5px",
-                  }}
-                >
-                  ♔ PUTIH
-                </div>
-
-                <div
-                  style={{
-                    fontSize:
-                      "12px",
-                    opacity: 0.7,
-                  }}
-                >
-                  {roomData
-                    .players
-                    ?.white
-                    ? roomData
-                        .players
-                        .white
-                        .id ===
-                      playerId
-                      ? "Kamu"
-                      : "Terisi"
-                    : "Kosong"}
-                </div>
-
-                {myColor ===
-                  "white" && (
-                  <button
-                    type="button"
-                    onClick={
-                      leaveSeat
-                    }
-                    style={{
-                      marginTop:
-                        "8px",
-                      background:
-                        "transparent",
-                      color:
-                        "#ffb0b0",
-                      border:
-                        "1px solid #9d4a4a",
-                      borderRadius:
-                        "7px",
-                      padding:
-                        "6px 9px",
-                      cursor:
-                        "pointer",
-                      fontSize:
-                        "11px",
-                    }}
-                  >
-                    Ganti Kursi
-                  </button>
-                )}
-              </div>
-
-              <div
-                style={{
-                  background:
-                    "rgba(255,255,255,0.05)",
-                  borderRadius:
-                    "10px",
-                  padding: "12px",
-                  textAlign:
-                    "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize:
-                      "13px",
-                    marginBottom:
-                      "5px",
-                  }}
-                >
-                  ♜ HITAM
-                </div>
-
-                <div
-                  style={{
-                    fontSize:
-                      "12px",
-                    opacity: 0.7,
-                  }}
-                >
-                  {roomData
-                    .players
-                    ?.black
-                    ? roomData
-                        .players
-                        .black
-                        .id ===
-                      playerId
-                      ? "Kamu"
-                      : "Terisi"
-                    : "Kosong"}
-                </div>
-
-                {myColor ===
-                  "black" && (
-                  <button
-                    type="button"
-                    onClick={
-                      leaveSeat
-                    }
-                    style={{
-                      marginTop:
-                        "8px",
-                      background:
-                        "transparent",
-                      color:
-                        "#ffb0b0",
-                      border:
-                        "1px solid #9d4a4a",
-                      borderRadius:
-                        "7px",
-                      padding:
-                        "6px 9px",
-                      cursor:
-                        "pointer",
-                      fontSize:
-                        "11px",
-                    }}
-                  >
-                    Ganti Kursi
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent:
-                  "center",
-                gap: "8px",
-                flexWrap:
-                  "wrap",
-                marginTop:
-                  "14px",
-              }}
-            >
-              {myColor !==
-                "white" &&
-                !roomData.players
-                  ?.white && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      takeSeat(
-                        "white"
-                      )
-                    }
-                    style={{
-                      background:
-                        "#e9ddc4",
-                      color:
-                        "#17100c",
-                      border:
-                        "none",
-                      borderRadius:
-                        "8px",
-                      padding:
-                        "10px 14px",
-                      fontWeight:
-                        700,
-                      cursor:
-                        "pointer",
-                    }}
-                  >
-                    Pilih Putih
-                  </button>
-                )}
-
-              {myColor !==
-                "black" &&
-                !roomData.players
-                  ?.black && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      takeSeat(
-                        "black"
-                      )
-                    }
-                    style={{
-                      background:
-                        GOLD,
-                      color:
-                        "#17100c",
-                      border:
-                        "none",
-                      borderRadius:
-                        "8px",
-                      padding:
-                        "10px 14px",
-                      fontWeight:
-                        700,
-                      cursor:
-                        "pointer",
-                    }}
-                  >
-                    Pilih Hitam
-                  </button>
-                )}
-            </div>
-
-            {roomData.host ===
-              playerId && (
-              <button
-                type="button"
-                onClick={
-                  startGame
-                }
-                disabled={
-                  !roomData
-                    .players
-                    ?.white ||
-                  !roomData
-                    .players
-                    ?.black ||
-                  loading
-                }
-                style={{
-                  width: "100%",
-                  marginTop:
-                    "14px",
-                  padding:
-                    "12px",
-                  border: "none",
-                  borderRadius:
-                    "9px",
-                  background:
-                    roomData
-                      .players
-                      ?.white &&
-                    roomData
-                      .players
-                      ?.black
-                      ? GOLD
-                      : "#555",
-                  color:
-                    "#17100c",
-                  fontWeight:
-                    700,
-                  cursor:
-                    roomData
-                      .players
-                      ?.white &&
-                    roomData
-                      .players
-                      ?.black
-                      ? "pointer"
-                      : "default",
-                }}
-              >
-                Mulai Chess
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* GAME */}
-
-        {gameStarted &&
-          gameState && (
-            <>
-              {renderBoard()}
-
-              {/* PROMOTION */}
-
-              {pendingPromotion && (
-                <div
-                  style={{
-                    width: "90vw",
-                    maxWidth:
-                      "560px",
-                    marginTop:
-                      "16px",
-                    padding:
-                      "14px",
-                    boxSizing:
-                      "border-box",
-                    background:
-                      "rgba(255,255,255,0.06)",
-                    border:
-                      `1px solid rgba(201,162,39,0.5)`,
-                    borderRadius:
-                      "12px",
-                    textAlign:
-                      "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight:
-                        700,
-                      marginBottom:
-                        "10px",
-                    }}
-                  >
-                    Pilih promosi
-                    pion:
-                  </div>
-
-                  <div
-                    style={{
-                      display:
-                        "grid",
-                      gridTemplateColumns:
-                        "repeat(4, 1fr)",
-                      gap: "8px",
-                    }}
-                  >
-                    {PROMOTION_OPTIONS.map(
-                      (option) => {
-                        const movingPiece =
-                          gameState
-                            .board[
-                            pendingPromotion
-                              .from
-                              .row
-                          ][
-                            pendingPromotion
-                              .from
-                              .col
-                          ];
-
-                        return (
-                          <button
-                            key={
-                              option.type
-                            }
-                            type="button"
-                            onClick={() =>
-                              executeMove(
-                                pendingPromotion.move,
-                                option.type
-                              )
-                            }
-                            style={{
-                              minHeight:
-                                "70px",
-                              background:
-                                "rgba(255,255,255,0.08)",
-                              color:
-                                CREAM,
-                              border:
-                                `1px solid ${GOLD}`,
-                              borderRadius:
-                                "8px",
-                              cursor:
-                                "pointer",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize:
-                                  "32px",
-                              }}
-                            >
-                              {getPieceSymbol(
-                                {
-                                  type:
-                                    option.type,
-                                  color:
-                                    movingPiece.color,
-                                }
-                              )}
-                            </div>
-
-                            <div
-                              style={{
-                                fontSize:
-                                  "11px",
-                                marginTop:
-                                  "3px",
-                              }}
-                            >
-                              {
-                                option.label
-                              }
-                            </div>
-                          </button>
-                        );
-                      }
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div
-                style={{
-                  marginTop:
-                    "14px",
-                  textAlign:
-                    "center",
-                  fontSize:
-                    "13px",
-                  opacity: 0.8,
-                }}
-              >
-                {myColor
-                  ? myColor ===
-                    gameState.turn
-                    ? "Giliran kamu."
-                    : "Bukan giliran kamu."
-                  : "Kamu belum memilih kursi."}
-              </div>
-            </>
-          )}
-
-        {/* MESSAGE */}
-
-        {message && (
-          <div
-            style={{
-              marginTop:
-                "10px",
-              textAlign:
-                "center",
-              fontSize:
-                "13px",
-              color:
-                "#ffd98a",
-              minHeight:
-                "18px",
-            }}
-          >
-            {message}
-          </div>
-        )}
-
-        {/* BUTTONS */}
-
-        <div
-          style={{
-            width: "90vw",
-            maxWidth: "560px",
-            marginTop:
-              "18px",
-            display: "flex",
-            justifyContent:
-              "center",
-            gap: "10px",
-            flexWrap:
-              "wrap",
-          }}
-        >
-          {gameStarted &&
-            roomData.host ===
-              playerId && (
-              <button
-                type="button"
-                onClick={
-                  resetGame
-                }
-                style={{
-                  background:
-                    GOLD,
-                  color:
-                    "#17100c",
-                  border: "none",
-                  borderRadius:
-                    "8px",
-                  padding:
-                    "11px 17px",
-                  fontSize:
-                    "14px",
-                  fontWeight:
-                    700,
-                  cursor:
-                    "pointer",
-                  minHeight:
-                    "42px",
-                }}
-              >
-                Reset Chess
-              </button>
-            )}
-
-          <button
-            type="button"
-            onClick={
-              leaveRoom
-            }
-            style={{
-              background:
-                "transparent",
-              color: CREAM,
-              border:
-                `1px solid ${GOLD}`,
-              borderRadius:
-                "8px",
-              padding:
-                "11px 17px",
-              fontSize:
-                "14px",
-              fontWeight:
-                700,
-              cursor:
-                "pointer",
-              minHeight:
-                "42px",
-            }}
-          >
-            ← Kembali ke Game Hub
-          </button>
-        </div>
-
-        {/* ROOM INFO */}
-
-        <div
-          style={{
-            marginTop:
-              "12px",
-            textAlign:
-              "center",
-            fontSize:
-              "11px",
-            opacity: 0.45,
-          }}
-        >
-          Room: {roomId}
-        </div>
-      </div>
+      {children}
     </div>
   );
 }
 
-export default Chess;
+function Panel({
+  children,
+  maxWidth = 460,
+}) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        maxWidth,
+        background:
+          "linear-gradient(180deg, #241A15, #17110E)",
+        border:
+          "1px solid rgba(201,162,39,0.35)",
+        borderRadius: 20,
+        padding: 26,
+        boxSizing:
+          "border-box",
+        textAlign: "center",
+        boxShadow:
+          "0 20px 60px rgba(0,0,0,0.45)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ModeButton({
+  children,
+  active,
+  onClick,
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border:
+          active
+            ? `2px solid ${GOLD}`
+            : "1px solid rgba(201,162,39,0.25)",
+        borderRadius: 14,
+        background:
+          active
+            ? "rgba(201,162,39,0.13)"
+            : "#14110F",
+        color: CREAM,
+        padding: 14,
+        cursor: "pointer",
+        fontWeight: 900,
+        display: "flex",
+        flexDirection:
+          "column",
+        alignItems:
+          "center",
+        gap: 5,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 25,
+        }}
+      >
+        {children[0]}
+      </span>
+
+      <span
+        style={{
+          fontSize: 11,
+        }}
+      >
+        {children[1]}
+      </span>
+    </button>
+  );
+}
+
+function PlayerSeat({
+  color,
+  player,
+  mine,
+}) {
+  const isWhite =
+    color === "white";
+
+  return (
+    <div
+      style={{
+        padding: 16,
+        borderRadius: 14,
+        background:
+          "rgba(255,255,255,0.04)",
+        border:
+          mine
+            ? `2px solid ${GOLD}`
+            : "1px solid rgba(201,162,39,0.2)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 28,
+        }}
+      >
+        {isWhite
+          ? "⚪"
+          : "⚫"}
+      </div>
+
+      <div
+        style={{
+          fontWeight: 900,
+          marginTop: 5,
+        }}
+      >
+        {isWhite
+          ? "Putih"
+          : "Hitam"}
+      </div>
+
+      <div
+        style={{
+          fontSize: 11,
+          opacity: 0.65,
+          marginTop: 4,
+        }}
+      >
+        {player
+          ? player.name ||
+            "Player"
+          : "Kosong"}
+      </div>
+
+      {mine && (
+        <div
+          style={{
+            marginTop: 7,
+            fontSize: 10,
+            color: GOLD,
+            fontWeight: 900,
+          }}
+        >
+          KAMU
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Message({
+  children,
+}) {
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 10,
+        borderRadius: 10,
+        background:
+          "rgba(201,162,39,0.08)",
+        color: CREAM,
+        fontSize: 12,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/*
+ * ========================================
+ * STYLES
+ * ========================================
+ */
+
+const primaryButton = {
+  width: "100%",
+  minHeight: 48,
+  border: "none",
+  borderRadius: 12,
+  background:
+    "linear-gradient(180deg, #D7B52F, #A98213)",
+  color: "#17110E",
+  fontWeight: 900,
+  cursor: "pointer",
+  padding: "0 16px",
+  boxShadow:
+    "0 8px 20px rgba(0,0,0,0.25)",
+};
+
+const secondaryButton = {
+  width: "100%",
+  minHeight: 46,
+  border:
+    "1px solid rgba(201,162,39,0.45)",
+  borderRadius: 12,
+  background: "#14110F",
+  color: CREAM,
+  fontWeight: 800,
+  cursor: "pointer",
+  padding: "0 16px",
+};
+
+const backButton = {
+  width: "100%",
+  minHeight: 44,
+  border: "none",
+  background: "transparent",
+  color: CREAM,
+  opacity: 0.7,
+  cursor: "pointer",
+};
+
+const smallBack = {
+  border:
+    "1px solid rgba(201,162,39,0.3)",
+  borderRadius: 10,
+  background: "#14110F",
+  color: CREAM,
+  padding: "8px 12px",
+  cursor: "pointer",
+  fontSize: 11,
+};
+
+const inputStyle = {
+  width: "100%",
+  height: 56,
+  boxSizing: "border-box",
+  borderRadius: 14,
+  border:
+    "1px solid rgba(201,162,39,0.75)",
+  background: "#14110F",
+  color: CREAM,
+  outline: "none",
+  textAlign: "center",
+  fontSize: 20,
+  fontWeight: 900,
+  letterSpacing: 5,
+  padding: "0 16px",
+  textTransform: "uppercase",
+  boxShadow:
+    "inset 0 2px 8px rgba(0,0,0,0.35)",
+  marginBottom: 10,
+};
+
+const smallChoice = {
+  minHeight: 54,
+  borderRadius: 12,
+  color: CREAM,
+  fontWeight: 800,
+  cursor: "pointer",
+  padding: 8,
+};
