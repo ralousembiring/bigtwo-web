@@ -132,14 +132,82 @@ function createCleanInitialState() {
 }
 
 function normalizeBoard(board) {
-  if (!Array.isArray(board)) {
-    return createInitialState().board;
-  }
+  const initial = createInitialState();
 
-  return board.map((row) =>
-    Array.isArray(row)
-      ? [...row]
-      : Array(8).fill(null)
+  const fallbackBoard =
+    Array.isArray(initial?.board)
+      ? initial.board
+      : Array.from(
+          { length: 8 },
+          () => Array(8).fill(null)
+        );
+
+  /*
+    Firebase bisa mengembalikan struktur
+    board sebagai Array atau Object.
+    Kita paksa hasil akhirnya selalu:
+    
+    8 row
+    x
+    8 column
+  */
+
+  const source =
+    Array.isArray(board)
+      ? board
+      : board &&
+        typeof board === "object"
+      ? Array.from(
+          { length: 8 },
+          (_, row) =>
+            board[row] ??
+            board[String(row)] ??
+            null
+        )
+      : fallbackBoard;
+
+  return Array.from(
+    { length: 8 },
+    (_, row) => {
+      const sourceRow =
+        source?.[row];
+
+      return Array.from(
+        { length: 8 },
+        (_, col) => {
+          if (
+            Array.isArray(
+              sourceRow
+            )
+          ) {
+            return (
+              sourceRow[col] ??
+              null
+            );
+          }
+
+          if (
+            sourceRow &&
+            typeof sourceRow ===
+              "object"
+          ) {
+            return (
+              sourceRow[col] ??
+              sourceRow[
+                String(col)
+              ] ??
+              null
+            );
+          }
+
+          /*
+            Kalau row-nya hilang,
+            isi 8 kotak dengan null.
+          */
+          return null;
+        }
+      );
+    }
   );
 }
 
@@ -149,19 +217,32 @@ function normalizeGameState(game) {
   const initial =
     createInitialState();
 
+  const safeBoard =
+    normalizeBoard(
+      game.board
+    );
+
   return {
     ...initial,
     ...game,
-    board: normalizeBoard(
-      game.board
-    ),
+
+    /*
+      WAJIB selalu 8x8.
+    */
+    board: safeBoard,
+
     turn:
-      game.turn || "white",
+      game.turn === "black"
+        ? "black"
+        : "white",
+
     castling:
       game.castling ||
       initial.castling,
+
     enPassant:
       game.enPassant ?? null,
+
     moveHistory:
       Array.isArray(
         game.moveHistory
@@ -170,7 +251,6 @@ function normalizeGameState(game) {
         : [],
   };
 }
-
 function pieceColor(piece) {
   if (!piece) return null;
 
@@ -2975,8 +3055,9 @@ export function Chess() {
     return null;
   }
 
-  const board =
-    gameState.board || [];
+  const board = normalizeBoard(
+  gameState?.board
+);
 
   const displayRows =
     myColor === "black"
