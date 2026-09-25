@@ -369,6 +369,7 @@ function LocalPlayer({
 
   const velocityY = useRef(0);
   const isGrounded = useRef(true);
+  const jumpActive = useRef(false);
   const modelGroupRef = useRef();
   const lastSync = useRef(0);
 
@@ -416,6 +417,7 @@ function LocalPlayer({
       ) {
         velocityY.current = 8;
         isGrounded.current = false;
+        jumpActive.current = true;
       }
     };
 
@@ -473,6 +475,7 @@ function LocalPlayer({
     if (mobileJumpRef?.current && isGrounded.current) {
       velocityY.current = 8;
       isGrounded.current = false;
+      jumpActive.current = true;
       mobileJumpRef.current = false;
     }
 
@@ -633,6 +636,7 @@ function LocalPlayer({
         position.current.y = top;
         velocityY.current = 0;
         isGrounded.current = true;
+        jumpActive.current = false;
       }
     }
 
@@ -640,10 +644,13 @@ function LocalPlayer({
       position.current.y = 1;
       velocityY.current = 0;
       isGrounded.current = true;
+      jumpActive.current = false;
     }
 
+    const explicitJumping = jumpActive.current;
+
     setAnimation(
-      !isGrounded.current
+      explicitJumping
         ? "jump"
         : isMoving
         ? "walk"
@@ -656,12 +663,13 @@ function LocalPlayer({
 
     const now = Date.now();
 
-    if (now - lastSync.current > 50) {
+    if (now - lastSync.current > 33) {
       lastSync.current = now;
 
       onPositionChange(
         position.current,
-        playerRef.current.rotation.y
+        playerRef.current.rotation.y,
+        explicitJumping
       );
     }
   });
@@ -700,10 +708,13 @@ function RemotePlayer({ player }) {
     )
   );
 
-  // Posisi remote mengikuti target dari Firebase secara halus.
-  // Kita sengaja tidak melakukan prediksi agresif karena pada mobile
-  // paket jaringan bisa datang tidak merata dan prediksi dapat membuat
-  // karakter terlihat sempat bergerak berlawanan arah.
+  // Perkiraan kecepatan dari dua paket jaringan terakhir.
+  // Ini membuat karakter tetap terlihat bergerak di antara update Firebase.
+  const networkVelocity = useRef(new THREE.Vector3());
+  const lastNetworkPosition = useRef(targetPosition.current.clone());
+  const lastNetworkTime = useRef(Date.now());
+
+  const predictedPosition = useRef(targetPosition.current.clone());
 
   const targetRotation = useRef(
     typeof player.position?.rotationY === "number"
@@ -734,8 +745,37 @@ function RemotePlayer({ player }) {
       Math.abs(targetPosition.current.y - nextY) > 0.001 ||
       Math.abs(targetPosition.current.z - nextZ) > 0.001;
 
+    const now = Date.now();
+    const elapsed = Math.max(
+      16,
+      now - lastNetworkTime.current
+    );
+
     if (changed) {
-      movingUntil.current = Date.now() + 140;
+      const rawVelocity = nextPosition
+        .clone()
+        .sub(lastNetworkPosition.current)
+        .multiplyScalar(1000 / elapsed);
+
+      // Batasi kecepatan prediksi supaya paket jaringan yang loncat
+      // tidak membuat karakter teleport atau meluncur terlalu jauh.
+      const maxSpeed = 7.5;
+
+      if (rawVelocity.length() > maxSpeed) {
+        rawVelocity.setLength(maxSpeed);
+      }
+
+      networkVelocity.current.lerp(
+        rawVelocity,
+        0.75
+      );
+
+      lastNetworkPosition.current.copy(
+        nextPosition
+      );
+
+      lastNetworkTime.current = now;
+      movingUntil.current = now + 140;
     }
 
     targetPosition.current.copy(nextPosition);
@@ -761,27 +801,43 @@ function RemotePlayer({ player }) {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    const positionSmooth = 1 - Math.exp(-18 * delta);
+    // Prediksi ringan hanya beberapa milidetik ke depan.
+    // Tujuannya mengisi celah antar paket jaringan, bukan menggantikan
+    // posisi server.
+    const predictionTime = 0.035;
+
+    predictedPosition.current.copy(
+      targetPosition.current
+    );
+
+    const prediction = networkVelocity.current
+      .clone()
+      .multiplyScalar(predictionTime);
+
+    predictedPosition.current.add(prediction);
+
+    const positionSmooth = 1 - Math.exp(-16 * delta);
 
     groupRef.current.position.lerp(
-      targetPosition.current,
+      predictedPosition.current,
       Math.min(1, positionSmooth)
     );
 
     const rotationSmooth = 1 - Math.exp(-18 * delta);
 
-    // Interpolasi sudut melalui jalur terpendek supaya karakter tidak
-    // terlihat berputar/berbalik aneh saat melewati -PI / PI.
-    const currentRotation = groupRef.current.rotation.y;
-    const rotationDelta =
-      THREE.MathUtils.euclideanModulo(
-        targetRotation.current - currentRotation + Math.PI,
-        Math.PI * 2
-      ) - Math.PI;
+    groupRef.current.rotation.y = THREE.MathUtils.lerp(
+      groupRef.current.rotation.y,
+      targetRotation.current,
+      Math.min(1, rotationSmooth)
+    );
 
-    groupRef.current.rotation.y =
-      currentRotation +
-      rotationDelta * Math.min(1, rotationSmooth);
+    // Saat tidak ada update baru, kecepatan prediksi dilemahkan perlahan
+    // agar karakter berhenti halus dan tidak terus meluncur.
+    if (Date.now() >= movingUntil.current) {
+      networkVelocity.current.multiplyScalar(
+        Math.pow(0.001, delta)
+      );
+    }
 
     const distanceToTarget =
       groupRef.current.position.distanceTo(
@@ -792,16 +848,14 @@ function RemotePlayer({ player }) {
       Date.now() < movingUntil.current;
 
     const visuallyMoving =
-      distanceToTarget > 0.018;
+      distanceToTarget > 0.018 ||
+      networkVelocity.current.length() > 0.08;
 
     let nextAnimation = "idle";
 
     if (throwing) {
       nextAnimation = "throw";
-    } else if (
-      player.isJumping ||
-      player.position?.y > 1.2
-    ) {
+    } else if (player.isJumping === true) {
       nextAnimation = "jump";
     } else if (networkMoving || visuallyMoving) {
       nextAnimation =
@@ -1832,7 +1886,6 @@ export function BomBomArena3D({
 
   const [throwCooldown, setThrowCooldown] =
     useState(false);
-  const throwCooldownRef = useRef(false);
 
   useEffect(() => {
     if (
@@ -1880,7 +1933,7 @@ export function BomBomArena3D({
         !game ||
         !alive ||
         game.bombHolderId !== playerId ||
-        throwCooldownRef.current
+        throwCooldown
       ) {
         return;
       }
@@ -1890,7 +1943,6 @@ export function BomBomArena3D({
 
       if (!player?.position) return;
 
-      throwCooldownRef.current = true;
       setThrowCooldown(true);
 
       try {
@@ -1913,9 +1965,8 @@ export function BomBomArena3D({
         );
       } finally {
         setTimeout(() => {
-          throwCooldownRef.current = false;
           setThrowCooldown(false);
-        }, 650);
+        }, 700);
       }
     },
     [
@@ -1924,6 +1975,7 @@ export function BomBomArena3D({
       game,
       players,
       alive,
+      throwCooldown,
     ]
   );
 
@@ -2236,7 +2288,7 @@ export function BomBomArena3D({
           isHost={isHost}
           mobileInputRef={mobileInputRef}
           mobileJumpRef={mobileJumpRef}
-          onPositionChange={(position, rotationY) => {
+          onPositionChange={(position, rotationY, isJumping = false) => {
             if (!roomCode) return;
 
             update(
@@ -2258,6 +2310,7 @@ export function BomBomArena3D({
                   typeof rotationY === "number"
                     ? Number(rotationY.toFixed(3))
                     : 0,
+                isJumping: Boolean(isJumping),
               }
             ).catch((error) => {
               console.error(
@@ -2336,12 +2389,7 @@ export function BomBomArena3D({
       </button>
 
       <button
-        type="button"
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          throwBomb();
-        }}
+        onClick={throwBomb}
         disabled={
           !alive ||
           game?.bombHolderId !== playerId
@@ -2373,10 +2421,6 @@ export function BomBomArena3D({
             game?.bombHolderId === playerId
               ? 1
               : 0.5,
-          touchAction: "manipulation",
-          WebkitTapHighlightColor: "transparent",
-          userSelect: "none",
-          WebkitUserSelect: "none",
         }}
       >
         💣 LEMPAR BOM
