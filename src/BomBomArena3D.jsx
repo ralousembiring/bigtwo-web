@@ -663,7 +663,7 @@ function LocalPlayer({
 
     const now = Date.now();
 
-    if (now - lastSync.current > 33) {
+    if (now - lastSync.current > 40) {
       lastSync.current = now;
 
       onPositionChange(
@@ -767,7 +767,7 @@ function RemotePlayer({ player }) {
 
       networkVelocity.current.lerp(
         rawVelocity,
-        0.75
+        0.55
       );
 
       lastNetworkPosition.current.copy(
@@ -775,7 +775,7 @@ function RemotePlayer({ player }) {
       );
 
       lastNetworkTime.current = now;
-      movingUntil.current = now + 140;
+      movingUntil.current = now + 160;
     }
 
     targetPosition.current.copy(nextPosition);
@@ -804,7 +804,7 @@ function RemotePlayer({ player }) {
     // Prediksi ringan hanya beberapa milidetik ke depan.
     // Tujuannya mengisi celah antar paket jaringan, bukan menggantikan
     // posisi server.
-    const predictionTime = 0.035;
+    const predictionTime = 0.045;
 
     predictedPosition.current.copy(
       targetPosition.current
@@ -816,20 +816,43 @@ function RemotePlayer({ player }) {
 
     predictedPosition.current.add(prediction);
 
-    const positionSmooth = 1 - Math.exp(-16 * delta);
+    const positionSmooth = 1 - Math.exp(-14 * delta);
 
-    groupRef.current.position.lerp(
-      predictedPosition.current,
-      Math.min(1, positionSmooth)
-    );
+    const correctionDistance =
+      groupRef.current.position.distanceTo(
+        targetPosition.current
+      );
 
-    const rotationSmooth = 1 - Math.exp(-18 * delta);
+    // Kalau paket datang setelah koneksi sempat tersendat lama, jangan
+    // membuat karakter meluncur mengejar posisi dari jarak yang terlalu jauh.
+    // Snap hanya untuk koreksi besar; gerakan normal tetap diinterpolasi.
+    if (correctionDistance > 1.5) {
+      groupRef.current.position.copy(
+        targetPosition.current
+      );
+      predictedPosition.current.copy(
+        targetPosition.current
+      );
+      networkVelocity.current.set(0, 0, 0);
+    } else {
+      groupRef.current.position.lerp(
+        predictedPosition.current,
+        Math.min(1, positionSmooth)
+      );
+    }
 
-    groupRef.current.rotation.y = THREE.MathUtils.lerp(
-      groupRef.current.rotation.y,
-      targetRotation.current,
-      Math.min(1, rotationSmooth)
-    );
+    const rotationSmooth = 1 - Math.exp(-16 * delta);
+
+    const currentRotation = groupRef.current.rotation.y;
+    const rotationDelta =
+      THREE.MathUtils.euclideanModulo(
+        targetRotation.current - currentRotation + Math.PI,
+        Math.PI * 2
+      ) - Math.PI;
+
+    groupRef.current.rotation.y =
+      currentRotation +
+      rotationDelta * Math.min(1, rotationSmooth);
 
     // Saat tidak ada update baru, kecepatan prediksi dilemahkan perlahan
     // agar karakter berhenti halus dan tidak terus meluncur.
