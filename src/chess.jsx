@@ -66,10 +66,6 @@ const BOT_LEVELS = {
   },
 };
 
-/* =========================================================
-   ROOM HELPERS
-========================================================= */
-
 function generateRoomCode() {
   return Math.random()
     .toString(36)
@@ -78,83 +74,73 @@ function generateRoomCode() {
 }
 
 function getPlayerId() {
-  const key =
-    "rgamehub_chess_player_id";
+  const key = "rgamehub_chess_player_id";
 
-  let id =
-    localStorage.getItem(key);
+  let id = localStorage.getItem(key);
 
   if (!id) {
     id =
       "chess_" +
-      Math.random()
-        .toString(36)
-        .substring(2) +
+      Math.random().toString(36).substring(2) +
       Date.now().toString(36);
 
-    localStorage.setItem(
-      key,
-      id
-    );
+    localStorage.setItem(key, id);
   }
 
   return id;
 }
 
-/* =========================================================
-   GAME STATE HELPERS
-========================================================= */
+/*
+  Firebase tidak menerima undefined.
+  Jadi state chess kita bersihkan dulu sebelum
+  dikirim ke database.
+*/
+function cleanForFirebase(value) {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(cleanForFirebase);
+  }
+
+  if (
+    value !== null &&
+    typeof value === "object"
+  ) {
+    const result = {};
+
+    Object.entries(value).forEach(
+      ([key, val]) => {
+        if (val !== undefined) {
+          result[key] =
+            cleanForFirebase(val);
+        }
+      }
+    );
+
+    return result;
+  }
+
+  return value;
+}
+
+function createCleanInitialState() {
+  return cleanForFirebase(
+    createInitialState()
+  );
+}
 
 function normalizeBoard(board) {
-  const initial =
-    createInitialState();
-
-  const initialBoard =
-    initial?.board;
-
-  /*
-   * Kalau board sama sekali tidak valid,
-   * langsung gunakan board awal.
-   */
-  if (!board) {
-    return initialBoard;
+  if (!Array.isArray(board)) {
+    return createInitialState().board;
   }
 
-  /*
-   * Firebase biasanya mengembalikan array
-   * dengan bentuk normal.
-   */
-  const normalized = [];
-
-  for (let row = 0; row < 8; row++) {
-    const sourceRow =
-      board?.[row];
-
-    const newRow = [];
-
-    for (let col = 0; col < 8; col++) {
-      if (
-        sourceRow &&
-        typeof sourceRow ===
-          "object"
-      ) {
-        newRow.push(
-          sourceRow?.[col] ??
-            initialBoard?.[row]?.[col] ??
-            null
-        );
-      } else {
-        newRow.push(
-          initialBoard?.[row]?.[col] ??
-            null
-        );
-      }
-    }
-
-    normalized.push(newRow);
-  }
-
-  return normalized;
+  return board.map((row) =>
+    Array.isArray(row)
+      ? [...row]
+      : Array(8).fill(null)
+  );
 }
 
 function normalizeGameState(game) {
@@ -166,24 +152,16 @@ function normalizeGameState(game) {
   return {
     ...initial,
     ...game,
-
-    board:
-      normalizeBoard(
-        game.board
-      ),
-
+    board: normalizeBoard(
+      game.board
+    ),
     turn:
-      game.turn === "black"
-        ? "black"
-        : "white",
-
+      game.turn || "white",
     castling:
       game.castling ||
       initial.castling,
-
     enPassant:
       game.enPassant ?? null,
-
     moveHistory:
       Array.isArray(
         game.moveHistory
@@ -196,18 +174,10 @@ function normalizeGameState(game) {
 function pieceColor(piece) {
   if (!piece) return null;
 
-  if (
-    typeof piece ===
-    "string"
-  ) {
-    if (
-      piece ===
-      piece.toUpperCase()
-    ) {
-      return "white";
-    }
-
-    return "black";
+  if (typeof piece === "string") {
+    return piece === piece.toUpperCase()
+      ? "white"
+      : "black";
   }
 
   return piece.color || null;
@@ -216,10 +186,7 @@ function pieceColor(piece) {
 function pieceType(piece) {
   if (!piece) return null;
 
-  if (
-    typeof piece ===
-    "string"
-  ) {
+  if (typeof piece === "string") {
     return piece.toLowerCase();
   }
 
@@ -266,10 +233,6 @@ function cloneState(state) {
   );
 }
 
-/* =========================================================
-   BOT HELPERS
-========================================================= */
-
 function allLegalMovesForColor(
   state,
   color
@@ -287,13 +250,12 @@ function allLegalMovesForColor(
       col++
     ) {
       const piece =
-        state?.board?.[row]?.[col];
+        state.board?.[row]?.[col];
 
       if (!piece) continue;
 
       if (
-        pieceColor(piece) !==
-        color
+        pieceColor(piece) !== color
       ) {
         continue;
       }
@@ -321,9 +283,7 @@ function allLegalMovesForColor(
 }
 
 function materialValue(piece) {
-  switch (
-    pieceType(piece)
-  ) {
+  switch (pieceType(piece)) {
     case "pawn":
     case "p":
       return 100;
@@ -370,7 +330,7 @@ function evaluateBoard(
       col++
     ) {
       const piece =
-        state?.board?.[row]?.[col];
+        state.board?.[row]?.[col];
 
       if (!piece) continue;
 
@@ -480,7 +440,7 @@ function chooseEasyMove(
     if (!target) continue;
 
     const captured =
-      state?.board?.[
+      state.board?.[
         target.row
       ]?.[target.col];
 
@@ -519,11 +479,12 @@ function chooseNormalMove(
           item.move
         );
 
-      const captured = target
-        ? state?.board?.[
-            target.row
-          ]?.[target.col]
-        : null;
+      const captured =
+        target
+          ? state.board?.[
+              target.row
+            ]?.[target.col]
+          : null;
 
       const next =
         simulateMove(
@@ -648,7 +609,7 @@ function chooseHardMove(
 
     for (
       const opponentMove of
-      opponentMoves
+        opponentMoves
     ) {
       const reply =
         simulateMove(
@@ -678,7 +639,7 @@ function chooseHardMove(
 
     if (target) {
       const captured =
-        state?.board?.[
+        state.board?.[
           target.row
         ]?.[target.col];
 
@@ -690,9 +651,7 @@ function chooseHardMove(
       }
     }
 
-    if (
-      score > bestScore
-    ) {
+    if (score > bestScore) {
       bestScore = score;
       bestMove = item;
     }
@@ -706,11 +665,7 @@ function chooseHardMove(
   );
 }
 
-/* =========================================================
-   CHESS COMPONENT
-========================================================= */
-
-function Chess() {
+export function Chess() {
   const playerIdRef =
     useRef(getPlayerId());
 
@@ -724,7 +679,7 @@ function Chess() {
     useRef(false);
 
   const [mode, setMode] =
-    useState(
+    useState(() =>
       window.location.search.includes(
         "room="
       )
@@ -752,8 +707,7 @@ function Chess() {
         );
 
       return (
-        params.get("room") ||
-        ""
+        params.get("room") || ""
       );
     });
 
@@ -786,23 +740,21 @@ function Chess() {
   const isPvP =
     mode === "pvp";
 
-  /* =======================================================
-     ROOM LISTENER
-  ======================================================= */
+  /*
+    ==========================
+    FIREBASE ROOM LISTENER
+    ==========================
+  */
 
   useEffect(() => {
-    if (
-      !isPvP ||
-      !roomId
-    ) {
+    if (!isPvP || !roomId) {
       return;
     }
 
-    const roomRef =
-      ref(
-        db,
-        `chessRooms/${roomId}`
-      );
+    const roomRef = ref(
+      db,
+      `chessRooms/${roomId}`
+    );
 
     const unsubscribe =
       onValue(
@@ -811,30 +763,19 @@ function Chess() {
           const data =
             snapshot.val();
 
-          /*
-           * Jangan langsung menghapus
-           * roomData kalau Firebase
-           * sempat mengembalikan null.
-           */
           if (!data) {
-            console.warn(
-              "Chess room belum terbaca:",
-              roomId
-            );
-
+            setRoomData(null);
+            setGameState(null);
             return;
           }
 
           setRoomData(data);
 
           if (data.game) {
-            const normalized =
+            setGameState(
               normalizeGameState(
                 data.game
-              );
-
-            setGameState(
-              normalized
+              )
             );
           } else {
             setGameState(null);
@@ -847,22 +788,17 @@ function Chess() {
           );
 
           setMessage(
-            "Gagal membaca room dari Firebase."
+            "Gagal membaca room Firebase."
           );
         }
       );
 
-    return () => {
+    return () =>
       unsubscribe();
-    };
   }, [
     roomId,
     isPvP,
   ]);
-
-  /* =======================================================
-     URL
-  ======================================================= */
 
   function openRoomUrl(code) {
     const url =
@@ -892,9 +828,11 @@ function Chess() {
     setRoomId("");
   }
 
-  /* =======================================================
-     CREATE ROOM
-  ======================================================= */
+  /*
+    ==========================
+    CREATE ROOM
+    ==========================
+  */
 
   async function createRoom() {
     setLoading(true);
@@ -904,78 +842,55 @@ function Chess() {
       const code =
         generateRoomCode();
 
-      const newRoom = {
-        createdAt:
-          Date.now(),
+      const roomDataToCreate = {
+        createdAt: Date.now(),
 
-        hostId:
-          playerId,
+        hostId: playerId,
 
         players: {
           [playerId]: {
             id: playerId,
             name: "Player 1",
+            number: 1,
             color: null,
-            joinedAt:
-              Date.now(),
           },
         },
 
         game: null,
       };
 
-      const roomRef =
+      await set(
         ref(
           db,
           `chessRooms/${code}`
-        );
-
-      await set(
-        roomRef,
-        newRoom
+        ),
+        roomDataToCreate
       );
-
-      /*
-       * Pastikan room benar-benar
-       * ada sebelum pindah ke lobby.
-       */
-      const verify =
-        await get(roomRef);
-
-      if (!verify.exists()) {
-        setMessage(
-          "Room gagal dibuat di Firebase."
-        );
-        return;
-      }
-
-      const savedRoom =
-        verify.val();
-
-      setRoomData(
-        savedRoom
-      );
-
-      setGameState(null);
 
       openRoomUrl(code);
     } catch (error) {
       console.error(
-        "Create room error:",
+        "CREATE ROOM ERROR:",
         error
       );
 
       setMessage(
-        "Gagal membuat room."
+        `Gagal membuat room${
+          error?.code
+            ? ` (${error.code})`
+            : ""
+        }.`
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /* =======================================================
-     JOIN ROOM
-  ======================================================= */
+  /*
+    ==========================
+    JOIN ROOM
+    ==========================
+  */
 
   async function joinRoom() {
     const code =
@@ -994,284 +909,376 @@ function Chess() {
     setMessage("");
 
     try {
-      const roomRef =
-        ref(
-          db,
-          `chessRooms/${code}`
-        );
-
-      /*
-       * Pastikan room ada.
-       */
-      const snapshot =
-        await get(roomRef);
-
-      if (!snapshot.exists()) {
-        setMessage(
-          "Room tidak ditemukan."
-        );
-        return;
-      }
-
-      const data =
-        snapshot.val();
-
-      const players =
-        data.players || {};
-
-      /*
-       * Kalau player sudah ada
-       * di room, langsung masuk.
-       */
-      if (
-        players[playerId]
-      ) {
-        setRoomData(data);
-
-        setGameState(
-          data.game
-            ? normalizeGameState(
-                data.game
-              )
-            : null
-        );
-
-        openRoomUrl(code);
-
-        return;
-      }
-
-      /*
-       * Maksimal 2 pemain.
-       */
-      if (
-        Object.keys(
-          players
-        ).length >= 2
-      ) {
-        setMessage(
-          "Room sudah penuh."
-        );
-        return;
-      }
-
-      /*
-       * Tambahkan Player 2.
-       *
-       * Warna sengaja null.
-       * Player harus memilih sendiri.
-       */
-      const updatedPlayers =
-        {
-          ...players,
-
-          [playerId]: {
-            id: playerId,
-            name: "Player 2",
-            color: null,
-            joinedAt:
-              Date.now(),
-          },
-        };
-
-      await set(
-        ref(
-          db,
-          `chessRooms/${code}/players`
-        ),
-        updatedPlayers
+      const roomRef = ref(
+        db,
+        `chessRooms/${code}`
       );
 
-      /*
-       * Baca ulang room setelah
-       * berhasil join.
-       */
-      const updatedSnapshot =
-        await get(roomRef);
+      let joinError = "";
+
+      const result =
+        await runTransaction(
+          roomRef,
+          (current) => {
+            if (!current) {
+              joinError =
+                "Room tidak ditemukan.";
+              return;
+            }
+
+            const players =
+              current.players || {};
+
+            /*
+              Kalau player ini sudah
+              ada di room, jangan tambah
+              player kedua.
+            */
+            if (
+              players[playerId]
+            ) {
+              return current;
+            }
+
+            /*
+              Hanya maksimal 2 player.
+            */
+            const entries =
+              Object.entries(
+                players
+              );
+
+            if (
+              entries.length >= 2
+            ) {
+              joinError =
+                "Room sudah penuh.";
+              return;
+            }
+
+            const nextNumber =
+              entries.length + 1;
+
+            return {
+              ...current,
+
+              players: {
+                ...players,
+
+                [playerId]: {
+                  id: playerId,
+                  name: `Player ${nextNumber}`,
+                  number:
+                    nextNumber,
+                  color: null,
+                },
+              },
+            };
+          }
+        );
 
       if (
-        !updatedSnapshot.exists()
+        joinError &&
+        !result.committed
       ) {
-        setMessage(
-          "Room gagal dibaca setelah bergabung."
-        );
+        setMessage(joinError);
         return;
       }
 
-      const updatedData =
-        updatedSnapshot.val();
-
-      setRoomData(
-        updatedData
-      );
-
-      setGameState(
-        updatedData.game
-          ? normalizeGameState(
-              updatedData.game
-            )
-          : null
-      );
+      if (!result.committed) {
+        setMessage(
+          "Gagal bergabung ke room."
+        );
+        return;
+      }
 
       openRoomUrl(code);
     } catch (error) {
       console.error(
-        "Join room error:",
+        "JOIN ROOM ERROR:",
         error
       );
 
       setMessage(
-        "Gagal bergabung ke room."
+        `Gagal bergabung ke room${
+          error?.code
+            ? ` (${error.code})`
+            : ""
+        }.`
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /* =======================================================
-     CURRENT PLAYER
-  ======================================================= */
+  /*
+    ==========================
+    CURRENT PLAYER COLOR
+    ==========================
+  */
 
-  const myPlayer =
+  const myColor = useMemo(() => {
+    if (isBotMode) {
+      return playerColor;
+    }
+
+    if (
+      !roomData?.players
+    ) {
+      return null;
+    }
+
+    return (
+      roomData.players[
+        playerId
+      ]?.color || null
+    );
+  }, [
+    roomData,
+    playerId,
+    isBotMode,
+    playerColor,
+  ]);
+
+  /*
+    ==========================
+    LOBBY DATA
+    ==========================
+  */
+
+  const lobbyPlayers =
     useMemo(() => {
-      if (isBotMode) {
-        return null;
-      }
+      const players =
+        roomData?.players || {};
 
-      return (
-        roomData?.players?.[
-          playerId
-        ] || null
-      );
+      return Object.entries(
+        players
+      )
+        .map(
+          ([id, player]) => ({
+            id,
+            ...player,
+          })
+        )
+        .sort(
+          (a, b) =>
+            (a.number || 99) -
+            (b.number || 99)
+        );
     }, [
       roomData,
-      playerId,
-      isBotMode,
     ]);
 
-  const myColor =
+  const whitePlayer =
     useMemo(() => {
-      if (isBotMode) {
-        return playerColor;
-      }
-
       return (
-        myPlayer?.color ||
-        null
+        lobbyPlayers.find(
+          (player) =>
+            player.color ===
+            "white"
+        ) || null
       );
     }, [
-      myPlayer,
-      isBotMode,
-      playerColor,
+      lobbyPlayers,
     ]);
 
-  /* =======================================================
-     CHOOSE PVP COLOR
-  ======================================================= */
+  const blackPlayer =
+    useMemo(() => {
+      return (
+        lobbyPlayers.find(
+          (player) =>
+            player.color ===
+            "black"
+        ) || null
+      );
+    }, [
+      lobbyPlayers,
+    ]);
+
+  const currentLobbyPlayer =
+    useMemo(() => {
+      return (
+        lobbyPlayers.find(
+          (player) =>
+            player.id ===
+            playerId
+        ) || null
+      );
+    }, [
+      lobbyPlayers,
+      playerId,
+    ]);
+
+  const opponentLobbyPlayer =
+    useMemo(() => {
+      return (
+        lobbyPlayers.find(
+          (player) =>
+            player.id !==
+            playerId
+        ) || null
+      );
+    }, [
+      lobbyPlayers,
+      playerId,
+    ]);
+
+  /*
+    ==========================
+    CHOOSE PVP COLOR
+    ==========================
+  */
 
   async function choosePvPColor(
     color
   ) {
     if (!roomId) return;
-    if (!roomData) return;
-    if (gameState) return;
 
-    const roomRef =
-      ref(
+    setMessage("");
+
+    try {
+      const roomRef = ref(
         db,
         `chessRooms/${roomId}`
       );
 
-    let errorMessage = "";
+      let colorError = "";
 
-    const result =
-      await runTransaction(
-        roomRef,
-        (current) => {
-          if (!current) {
-            errorMessage =
-              "Room tidak ditemukan.";
+      const result =
+        await runTransaction(
+          roomRef,
+          (current) => {
+            if (!current) {
+              colorError =
+                "Room tidak ditemukan.";
+              return;
+            }
 
-            return;
-          }
+            if (current.game) {
+              colorError =
+                "Game sudah dimulai.";
+              return;
+            }
 
-          const players =
-            current.players || {};
+            const players =
+              current.players || {};
 
-          const me =
-            players[playerId];
+            const me =
+              players[playerId];
 
-          if (!me) {
-            errorMessage =
-              "Kamu tidak terdaftar di room.";
+            if (!me) {
+              colorError =
+                "Kamu tidak terdaftar di room.";
+              return;
+            }
 
-            return;
-          }
+            /*
+              Cek apakah warna sudah
+              dipakai player lain.
+            */
+            const occupiedByOther =
+              Object.entries(
+                players
+              ).some(
+                ([id, player]) =>
+                  id !== playerId &&
+                  player?.color ===
+                    color
+              );
 
-          /*
-           * Cek warna milik lawan.
-           */
-          for (
-            const [
-              id,
-              player,
-            ] of Object.entries(
-              players
-            )
-          ) {
             if (
-              id !== playerId &&
-              player?.color === color
+              occupiedByOther
             ) {
-              errorMessage =
+              colorError =
                 color === "white"
                   ? "Bidak Putih sudah dipilih player lain."
                   : "Bidak Hitam sudah dipilih player lain.";
 
               return;
             }
-          }
 
-          /*
-           * Pilih warna.
-           * Kalau sebelumnya memilih warna lain,
-           * otomatis pindah.
-           */
-          return {
-            ...current,
+            return {
+              ...current,
 
-            players: {
-              ...players,
+              players: {
+                ...players,
 
-              [playerId]: {
-                ...me,
-                color,
+                [playerId]: {
+                  ...me,
+                  color,
+                },
               },
-            },
-          };
-        }
+            };
+          }
+        );
+
+      if (
+        colorError &&
+        !result.committed
+      ) {
+        setMessage(
+          colorError
+        );
+        return;
+      }
+
+      if (!result.committed) {
+        setMessage(
+          "Gagal memilih warna."
+        );
+      }
+    } catch (error) {
+      console.error(
+        "CHOOSE COLOR ERROR:",
+        error
       );
 
-    if (
-      !result.committed &&
-      errorMessage
-    ) {
       setMessage(
-        errorMessage
+        `Gagal memilih warna${
+          error?.code
+            ? ` (${error.code})`
+            : ""
+        }.`
       );
-
-      return;
     }
-
-    setMessage("");
   }
 
-  /* =======================================================
-     START PVP
-  ======================================================= */
+  /*
+    ==========================
+    START PVP GAME
+    ==========================
+  */
 
   async function startPvPGame() {
     if (!roomId) {
+      setMessage(
+        "Room belum tersedia."
+      );
+      return;
+    }
+
+    const players =
+      roomData?.players || {};
+
+    const playerEntries =
+      Object.values(players);
+
+    if (
+      playerEntries.length !== 2
+    ) {
+      setMessage(
+        "Harus ada 2 pemain di room."
+      );
+      return;
+    }
+
+    if (
+      !whitePlayer ||
+      !blackPlayer
+    ) {
+      setMessage(
+        "Kedua pemain harus memilih warna."
+      );
       return;
     }
 
@@ -1280,95 +1287,130 @@ function Chess() {
       playerId
     ) {
       setMessage(
-        "Hanya host yang bisa memulai game."
+        "Hanya host yang dapat memulai game."
       );
-
       return;
     }
 
-    const players =
-      roomData?.players || {};
-
-    const playerList =
-      Object.values(
-        players
-      );
-
-    if (
-      playerList.length !== 2
-    ) {
-      setMessage(
-        "Menunggu 2 pemain."
-      );
-
-      return;
-    }
-
-    const whitePlayer =
-      playerList.find(
-        (player) =>
-          player?.color ===
-          "white"
-      );
-
-    const blackPlayer =
-      playerList.find(
-        (player) =>
-          player?.color ===
-          "black"
-      );
-
-    if (
-      !whitePlayer ||
-      !blackPlayer
-    ) {
-      setMessage(
-        "Kedua pemain harus memilih warna terlebih dahulu."
-      );
-
-      return;
-    }
+    setLoading(true);
+    setMessage("");
 
     try {
-      const initial =
-        normalizeGameState(
-          createInitialState()
-        );
-
-      await set(
-        ref(
-          db,
-          `chessRooms/${roomId}/game`
-        ),
-        initial
+      const roomRef = ref(
+        db,
+        `chessRooms/${roomId}`
       );
 
-      setSelected(null);
-      setPendingPromotion(null);
+      const result =
+        await runTransaction(
+          roomRef,
+          (current) => {
+            if (!current) {
+              return;
+            }
+
+            if (
+              current.hostId !==
+              playerId
+            ) {
+              return;
+            }
+
+            const currentPlayers =
+              current.players ||
+              {};
+
+            const entries =
+              Object.values(
+                currentPlayers
+              );
+
+            if (
+              entries.length !== 2
+            ) {
+              return;
+            }
+
+            const hasWhite =
+              entries.some(
+                (player) =>
+                  player?.color ===
+                  "white"
+              );
+
+            const hasBlack =
+              entries.some(
+                (player) =>
+                  player?.color ===
+                  "black"
+              );
+
+            if (
+              !hasWhite ||
+              !hasBlack
+            ) {
+              return;
+            }
+
+            /*
+              INI BAGIAN PENTING.
+              State dibersihkan supaya
+              Firebase tidak menerima
+              undefined.
+            */
+            const initialGame =
+              createCleanInitialState();
+
+            return {
+              ...current,
+              game: initialGame,
+              gameStarted: true,
+            };
+          }
+        );
+
+      if (!result.committed) {
+        setMessage(
+          "Game tidak dapat dimulai. Pastikan 2 pemain dan kedua warna sudah dipilih."
+        );
+        return;
+      }
+
       setMessage("");
     } catch (error) {
       console.error(
-        "Start Chess error:",
+        "START GAME ERROR:",
         error
       );
 
       setMessage(
-        "Gagal memulai game."
+        `Gagal memulai game${
+          error?.code
+            ? ` (${error.code})`
+            : ""
+        }.`
       );
+    } finally {
+      setLoading(false);
     }
   }
 
-  /* =======================================================
-     BOT GAME
-  ======================================================= */
+  /*
+    ==========================
+    BOT GAME
+    ==========================
+  */
 
   function startBotGame() {
     const initial =
-      normalizeGameState(
-        createInitialState()
-      );
+      createCleanInitialState();
 
-    setGameState(initial);
+    setGameState(
+      normalizeGameState(
+        initial
+      )
+    );
+
     setSelected(null);
     setPendingPromotion(null);
     setMessage("");
@@ -1396,33 +1438,32 @@ function Chess() {
     setPendingPromotion(null);
     setRoomData(null);
     setRoomId("");
-
     clearRoomUrl();
-
     setMode("select");
   }
 
-  /* =======================================================
-     GAME STATUS
-  ======================================================= */
+  /*
+    ==========================
+    GAME STATUS
+    ==========================
+  */
 
-  const status =
-    useMemo(() => {
-      if (!gameState) {
-        return {
-          status: "waiting",
-          check: false,
-          gameOver: false,
-          winner: null,
-        };
-      }
+  const status = useMemo(() => {
+    if (!gameState) {
+      return {
+        status: "waiting",
+        check: false,
+        gameOver: false,
+        winner: null,
+      };
+    }
 
-      return getGameStatus(
-        gameState
-      );
-    }, [
-      gameState,
-    ]);
+    return getGameStatus(
+      gameState
+    );
+  }, [
+    gameState,
+  ]);
 
   function getStatusText() {
     if (!gameState) {
@@ -1440,12 +1481,10 @@ function Chess() {
           : "Hitam";
 
       if (isBotMode) {
-        return (
-          status.winner ===
+        return status.winner ===
           playerColor
-            ? "♛ SKAKMAT! Kamu menang"
-            : "♛ SKAKMAT! Bot menang"
-        );
+          ? "♛ SKAKMAT! Kamu menang"
+          : "♛ SKAKMAT! Bot menang";
       }
 
       return `♛ SKAKMAT! ${winner} menang`;
@@ -1485,9 +1524,11 @@ function Chess() {
     return `Giliran ${turn}`;
   }
 
-  /* =======================================================
-     VALID MOVES
-  ======================================================= */
+  /*
+    ==========================
+    LEGAL MOVES
+    ==========================
+  */
 
   const validMoves =
     useMemo(() => {
@@ -1499,9 +1540,8 @@ function Chess() {
       }
 
       if (
-        !myColor ||
         gameState.turn !==
-          myColor
+        myColor
       ) {
         return [];
       }
@@ -1535,9 +1575,7 @@ function Chess() {
     return validMoves.some(
       (move) => {
         const target =
-          getMoveTarget(
-            move
-          );
+          getMoveTarget(move);
 
         return (
           target?.row === row &&
@@ -1547,9 +1585,11 @@ function Chess() {
     );
   }
 
-  /* =======================================================
-     EXECUTE MOVE
-  ======================================================= */
+  /*
+    ==========================
+    EXECUTE MOVE
+    ==========================
+  */
 
   async function executeMove(
     from,
@@ -1561,9 +1601,8 @@ function Chess() {
     }
 
     if (
-      !myColor ||
       gameState.turn !==
-        myColor
+      myColor
     ) {
       return;
     }
@@ -1573,8 +1612,8 @@ function Chess() {
     }
 
     /*
-     * BOT
-     */
+      BOT
+    */
     if (isBotMode) {
       const current =
         cloneState(
@@ -1593,7 +1632,6 @@ function Chess() {
         setMessage(
           "Langkah tidak valid."
         );
-
         return;
       }
 
@@ -1605,8 +1643,8 @@ function Chess() {
     }
 
     /*
-     * MULTIPLAYER
-     */
+      PVP
+    */
     if (!roomId) {
       return;
     }
@@ -1620,87 +1658,104 @@ function Chess() {
     let transactionError =
       "";
 
-    const result =
-      await runTransaction(
-        gameRef,
-        (current) => {
-          if (!current) {
-            transactionError =
-              "Game belum dimulai.";
+    try {
+      const result =
+        await runTransaction(
+          gameRef,
+          (current) => {
+            if (!current) {
+              transactionError =
+                "Game belum dimulai.";
+              return;
+            }
 
-            return;
-          }
+            const normalized =
+              normalizeGameState(
+                current
+              );
 
-          const normalized =
-            normalizeGameState(
-              current
+            if (
+              normalized.turn !==
+              myColor
+            ) {
+              return;
+            }
+
+            const legal =
+              getLegalMoves(
+                normalized,
+                from.row,
+                from.col
+              ) || [];
+
+            const selectedMove =
+              legal.find(
+                (candidate) =>
+                  moveKey(
+                    from,
+                    candidate
+                  ) ===
+                  moveKey(
+                    from,
+                    move
+                  )
+              );
+
+            if (!selectedMove) {
+              transactionError =
+                "Langkah tidak valid.";
+              return;
+            }
+
+            return cleanForFirebase(
+              applyMove(
+                normalized,
+                from.row,
+                from.col,
+                selectedMove,
+                promotion
+              )
             );
-
-          if (
-            normalized.turn !==
-            myColor
-          ) {
-            return;
           }
+        );
 
-          const legal =
-            getLegalMoves(
-              normalized,
-              from.row,
-              from.col
-            ) || [];
-
-          const selectedMove =
-            legal.find(
-              (candidate) =>
-                moveKey(
-                  from,
-                  candidate
-                ) ===
-                moveKey(
-                  from,
-                  move
-                )
-            );
-
-          if (!selectedMove) {
-            transactionError =
-              "Langkah tidak valid.";
-
-            return;
-          }
-
-          return applyMove(
-            normalized,
-            from.row,
-            from.col,
-            selectedMove,
-            promotion
+      if (
+        !result.committed
+      ) {
+        if (
+          transactionError
+        ) {
+          setMessage(
+            transactionError
           );
         }
-      );
 
-    if (
-      !result.committed
-    ) {
-      if (
-        transactionError
-      ) {
-        setMessage(
-          transactionError
-        );
+        return;
       }
 
-      return;
-    }
+      setSelected(null);
+      setPendingPromotion(null);
+    } catch (error) {
+      console.error(
+        "MOVE ERROR:",
+        error
+      );
 
-    setSelected(null);
-    setPendingPromotion(null);
+      setMessage(
+        `Gagal mengirim langkah${
+          error?.code
+            ? ` (${error.code})`
+            : ""
+        }.`
+      );
+    }
   }
 
-  /* =======================================================
-     SQUARE CLICK
-  ======================================================= */
+  /*
+    ==========================
+    BOARD CLICK
+    ==========================
+  */
 
   function handleSquareClick(
     row,
@@ -1711,10 +1766,6 @@ function Chess() {
     }
 
     if (status.gameOver) {
-      return;
-    }
-
-    if (!myColor) {
       return;
     }
 
@@ -1737,9 +1788,6 @@ function Chess() {
         row
       ]?.[col];
 
-    /*
-     * Belum memilih bidak.
-     */
     if (!selected) {
       if (
         clickedPiece &&
@@ -1756,9 +1804,6 @@ function Chess() {
       return;
     }
 
-    /*
-     * Klik bidak sendiri.
-     */
     if (
       clickedPiece &&
       pieceColor(
@@ -1773,9 +1818,6 @@ function Chess() {
       return;
     }
 
-    /*
-     * Cari langkah.
-     */
     const move =
       validMoves.find(
         (candidate) => {
@@ -1808,10 +1850,8 @@ function Chess() {
 
     const isPromotion =
       type === "pawn" &&
-      (
-        row === 0 ||
-        row === 7
-      );
+      (row === 0 ||
+        row === 7);
 
     if (isPromotion) {
       setPendingPromotion({
@@ -1827,10 +1867,6 @@ function Chess() {
       move
     );
   }
-
-  /* =======================================================
-     PROMOTION
-  ======================================================= */
 
   function choosePromotion(
     promotion
@@ -1848,9 +1884,11 @@ function Chess() {
     );
   }
 
-  /* =======================================================
-     BOT TURN
-  ======================================================= */
+  /*
+    ==========================
+    BOT AI LOOP
+    ==========================
+  */
 
   useEffect(() => {
     if (!isBotMode) {
@@ -1872,9 +1910,7 @@ function Chess() {
       return;
     }
 
-    if (
-      botBusyRef.current
-    ) {
+    if (botBusyRef.current) {
       return;
     }
 
@@ -1970,8 +2006,10 @@ function Chess() {
               type === "pawn" &&
               target &&
               (
-                target.row === 0 ||
-                target.row === 7
+                target.row ===
+                  0 ||
+                target.row ===
+                  7
               )
             ) {
               promotion =
@@ -1987,9 +2025,7 @@ function Chess() {
               );
 
             if (next) {
-              setGameState(
-                next
-              );
+              setGameState(next);
             }
           }
         } catch (error) {
@@ -2025,10 +2061,6 @@ function Chess() {
     status.gameOver,
   ]);
 
-  /* =======================================================
-     RESET BOT
-  ======================================================= */
-
   function resetBotGame() {
     if (
       botTimerRef.current
@@ -2045,17 +2077,13 @@ function Chess() {
 
     setGameState(
       normalizeGameState(
-        createInitialState()
+        createCleanInitialState()
       )
     );
 
     setSelected(null);
     setPendingPromotion(null);
   }
-
-  /* =======================================================
-     RESET PVP
-  ======================================================= */
 
   async function resetPvPGame() {
     if (
@@ -2072,23 +2100,35 @@ function Chess() {
       return;
     }
 
-    await set(
-      ref(
-        db,
-        `chessRooms/${roomId}/game`
-      ),
-      normalizeGameState(
-        createInitialState()
-      )
-    );
+    try {
+      await set(
+        ref(
+          db,
+          `chessRooms/${roomId}/game`
+        ),
+        createCleanInitialState()
+      );
 
-    setSelected(null);
-    setPendingPromotion(null);
+      setSelected(null);
+      setPendingPromotion(null);
+      setMessage("");
+    } catch (error) {
+      console.error(
+        "RESET GAME ERROR:",
+        error
+      );
+
+      setMessage(
+        "Gagal reset game."
+      );
+    }
   }
 
-  /* =======================================================
-     CHECKED KING
-  ======================================================= */
+  /*
+    ==========================
+    CHECKED KING
+    ==========================
+  */
 
   const checkedKing =
     useMemo(() => {
@@ -2115,13 +2155,13 @@ function Chess() {
       status.check,
     ]);
 
-  /* =======================================================
-     MODE SELECT
-  ======================================================= */
+  /*
+    ==========================
+    MODE SELECT
+    ==========================
+  */
 
-  if (
-    mode === "select"
-  ) {
+  if (mode === "select") {
     return (
       <Page>
         <Panel maxWidth={500}>
@@ -2166,27 +2206,21 @@ function Chess() {
           >
             <ModeButton
               active={false}
-              onClick={() => {
-                setMode("pvp");
-              }}
-            >
-              👥
-              <span>
-                MULTIPLAYER
-              </span>
-            </ModeButton>
+              icon="👥"
+              label="MULTIPLAYER"
+              onClick={() =>
+                setMode("pvp")
+              }
+            />
 
             <ModeButton
               active
-              onClick={() => {
-                setMode("bot");
-              }}
-            >
-              🤖
-              <span>
-                VS BOT
-              </span>
-            </ModeButton>
+              icon="🤖"
+              label="VS BOT"
+              onClick={() =>
+                setMode("bot")
+              }
+            />
           </div>
 
           <div
@@ -2231,10 +2265,7 @@ function Chess() {
               {Object.entries(
                 BOT_LEVELS
               ).map(
-                ([
-                  key,
-                  value,
-                ]) => (
+                ([key, value]) => (
                   <button
                     key={key}
                     onClick={() =>
@@ -2296,7 +2327,6 @@ function Chess() {
                   setPlayerColor(
                     "white"
                   );
-
                   setBotColor(
                     "black"
                   );
@@ -2323,7 +2353,6 @@ function Chess() {
                   setPlayerColor(
                     "black"
                   );
-
                   setBotColor(
                     "white"
                   );
@@ -2364,9 +2393,9 @@ function Chess() {
               ...secondaryButton,
               marginTop: 10,
             }}
-            onClick={() => {
-              window.history.back();
-            }}
+            onClick={() =>
+              window.history.back()
+            }
           >
             ← Kembali
           </button>
@@ -2375,9 +2404,11 @@ function Chess() {
     );
   }
 
-  /* =======================================================
-     PVP CREATE / JOIN
-  ======================================================= */
+  /*
+    ==========================
+    PVP ROOM ENTRY
+    ==========================
+  */
 
   if (
     isPvP &&
@@ -2448,7 +2479,8 @@ function Chess() {
             }
             onKeyDown={(e) => {
               if (
-                e.key === "Enter"
+                e.key ===
+                "Enter"
               ) {
                 joinRoom();
               }
@@ -2491,9 +2523,11 @@ function Chess() {
     );
   }
 
-  /* =======================================================
-     ROOM LOADING
-  ======================================================= */
+  /*
+    ==========================
+    LOADING ROOM
+    ==========================
+  */
 
   if (
     isPvP &&
@@ -2528,29 +2562,16 @@ function Chess() {
             Room:{" "}
             <b>{roomId}</b>
           </div>
-
-          <button
-            style={{
-              ...secondaryButton,
-              marginTop: 18,
-            }}
-            onClick={() => {
-              clearRoomUrl();
-              setRoomData(null);
-              setGameState(null);
-              setMode("pvp");
-            }}
-          >
-            ← Kembali
-          </button>
         </Panel>
       </Page>
     );
   }
 
-  /* =======================================================
-     PVP LOBBY
-  ======================================================= */
+  /*
+    ==========================
+    PVP LOBBY
+    ==========================
+  */
 
   if (
     isPvP &&
@@ -2561,52 +2582,34 @@ function Chess() {
     const players =
       roomData.players || {};
 
-    const playerList =
-      Object.values(
-        players
-      );
-
-    const white =
-      playerList.find(
-        (player) =>
-          player?.color ===
-          "white"
-      ) || null;
-
-    const black =
-      playerList.find(
-        (player) =>
-          player?.color ===
-          "black"
-      ) || null;
-
-    const opponent =
-      playerList.find(
-        (player) =>
-          player?.id !==
-          playerId
-      ) || null;
+    const playerCount =
+      lobbyPlayers.length;
 
     const isHost =
       roomData.hostId ===
       playerId;
 
-    const bothPlayersReady =
-      playerList.length ===
-        2 &&
-      !!white &&
-      !!black;
+    const bothPlayers =
+      playerCount === 2;
+
+    const bothColors =
+      !!whitePlayer &&
+      !!blackPlayer;
+
+    const canStart =
+      isHost &&
+      bothPlayers &&
+      bothColors;
 
     return (
       <Page>
-        <Panel maxWidth={500}>
+        <Panel maxWidth={560}>
           <div
             style={{
               display: "flex",
               justifyContent:
                 "space-between",
-              alignItems:
-                "center",
+              alignItems: "center",
               gap: 10,
             }}
           >
@@ -2639,20 +2642,12 @@ function Chess() {
             </div>
 
             <button
-              style={
-                smallBack
-              }
+              style={smallBack}
               onClick={() => {
                 clearRoomUrl();
-
                 setRoomData(
                   null
                 );
-
-                setGameState(
-                  null
-                );
-
                 setMode(
                   "select"
                 );
@@ -2678,6 +2673,7 @@ function Chess() {
               color: GOLD,
               fontFamily:
                 "Georgia, serif",
+              marginBottom: 8,
             }}
           >
             Lobby Chess
@@ -2685,14 +2681,20 @@ function Chess() {
 
           <div
             style={{
-              marginTop: 6,
-              fontSize: 12,
+              fontSize: 13,
               opacity: 0.7,
+              marginBottom: 18,
             }}
           >
-            {playerList.length}/2
-            pemain di room
+            {playerCount}/2 pemain
+            di room
           </div>
+
+          /*
+            ======================
+            WARNA
+            ======================
+          */
 
           <div
             style={{
@@ -2700,170 +2702,175 @@ function Chess() {
               gridTemplateColumns:
                 "1fr 1fr",
               gap: 10,
-              marginTop: 18,
             }}
           >
-            <PlayerSeat
+            <ColorSeat
               color="white"
-              player={white}
+              player={
+                whitePlayer
+              }
               mine={
-                white?.id ===
+                whitePlayer?.id ===
                 playerId
               }
-              canChoose={
-                !!myPlayer &&
-                !gameState &&
-                (
-                  !white ||
-                  white.id ===
-                    playerId
-                )
+              selected={
+                myColor ===
+                "white"
               }
               onChoose={() =>
                 choosePvPColor(
                   "white"
                 )
               }
-            />
-
-            <PlayerSeat
-              color="black"
-              player={black}
-              mine={
-                black?.id ===
-                playerId
-              }
-              canChoose={
-                !!myPlayer &&
-                !gameState &&
+              disabled={
+                !currentLobbyPlayer ||
                 (
-                  !black ||
-                  black.id ===
+                  !!whitePlayer &&
+                  whitePlayer.id !==
                     playerId
                 )
+              }
+            />
+
+            <ColorSeat
+              color="black"
+              player={
+                blackPlayer
+              }
+              mine={
+                blackPlayer?.id ===
+                playerId
+              }
+              selected={
+                myColor ===
+                "black"
               }
               onChoose={() =>
                 choosePvPColor(
                   "black"
                 )
               }
+              disabled={
+                !currentLobbyPlayer ||
+                (
+                  !!blackPlayer &&
+                  blackPlayer.id !==
+                    playerId
+                )
+              }
             />
           </div>
 
+          /*
+            ======================
+            PLAYER INFO
+            ======================
+          */
+
           <div
             style={{
-              marginTop: 14,
+              marginTop: 18,
               padding: 14,
-              borderRadius: 12,
+              borderRadius: 14,
               background:
                 "rgba(255,255,255,0.04)",
               border:
-                "1px solid rgba(201,162,39,0.15)",
-              fontSize: 12,
+                "1px solid rgba(201,162,39,0.2)",
               textAlign: "left",
             }}
           >
             <div
               style={{
-                fontWeight: 900,
                 color: GOLD,
-                marginBottom: 6,
+                fontWeight: 900,
+                marginBottom: 8,
               }}
             >
               👥 Pemain
             </div>
 
-            <div>
-              Kamu:{" "}
-              <b>
-                {myPlayer?.name ||
-                  "Belum masuk"}
-              </b>
+            {lobbyPlayers.map(
+              (player) => (
+                <div
+                  key={
+                    player.id
+                  }
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    alignItems:
+                      "center",
+                    gap: 10,
+                    padding:
+                      "7px 0",
+                    borderBottom:
+                      "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <div>
+                    <b>
+                      {player.name ||
+                        "Player"}
+                    </b>
 
-              {" • "}
+                    {player.id ===
+                      playerId && (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          color: GOLD,
+                          fontSize: 10,
+                          fontWeight: 900,
+                        }}
+                      >
+                        KAMU
+                      </span>
+                    )}
+                  </div>
 
-              {myColor
-                ? myColor ===
-                  "white"
-                  ? "⚪ Putih"
-                  : "⚫ Hitam"
-                : "Belum memilih warna"}
-            </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      opacity: 0.75,
+                    }}
+                  >
+                    {player.color ===
+                    "white"
+                      ? "⚪ Putih"
+                      : player.color ===
+                        "black"
+                      ? "⚫ Hitam"
+                      : "🎨 Belum pilih"}
+                  </div>
+                </div>
+              )
+            )}
 
-            <div
-              style={{
-                marginTop: 5,
-                opacity: 0.7,
-              }}
-            >
-              Lawan:{" "}
-              <b>
-                {opponent
-                  ? opponent.name ||
-                    "Player"
-                  : "Menunggu pemain..."}
-              </b>
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: 14,
-              padding: 12,
-              borderRadius: 12,
-              background:
-                "rgba(201,162,39,0.08)",
-              fontSize: 12,
-            }}
-          >
-            {!myColor ? (
-              <>
-                ⚪ Pilih{" "}
-                <b>Putih</b>{" "}
-                atau ⚫ pilih{" "}
-                <b>Hitam</b> untuk
-                menentukan bidakmu.
-              </>
-            ) : playerList.length <
-              2 ? (
-              <>
+            {opponentLobbyPlayer ===
+              null &&
+              playerCount <
+                2 && (
+              <div
+                style={{
+                  paddingTop: 10,
+                  fontSize: 12,
+                  opacity: 0.65,
+                }}
+              >
                 ⏳ Menunggu player
                 kedua masuk...
-              </>
-            ) : bothPlayersReady ? (
-              <>
-                ✅ Kedua warna sudah
-                dipilih. Menunggu
-                host memulai game.
-              </>
-            ) : (
-              <>
-                ⏳ Menunggu lawan
-                memilih warna...
-              </>
+              </div>
             )}
           </div>
 
-          {isHost ? (
-            <button
-              style={{
-                ...primaryButton,
-                marginTop: 15,
-                opacity:
-                  bothPlayersReady
-                    ? 1
-                    : 0.5,
-              }}
-              disabled={
-                !bothPlayersReady
-              }
-              onClick={
-                startPvPGame
-              }
-            >
-              ♟️ Mulai Game
-            </button>
-          ) : (
+          /*
+            ======================
+            STATUS
+            ======================
+          */
+
+          {!bothPlayers && (
             <div
               style={{
                 marginTop: 15,
@@ -2874,52 +2881,131 @@ function Chess() {
                 fontSize: 12,
               }}
             >
-              ⏳ Menunggu Host
-              memulai game...
+              ⏳ Menunggu player
+              kedua masuk...
             </div>
           )}
+
+          {bothPlayers &&
+            !bothColors && (
+              <div
+                style={{
+                  marginTop: 15,
+                  padding: 14,
+                  borderRadius: 12,
+                  background:
+                    "rgba(201,162,39,0.08)",
+                  fontSize: 12,
+                }}
+              >
+                🎨 Kedua pemain
+                harus memilih warna
+                masing-masing.
+              </div>
+            )}
+
+          {bothPlayers &&
+            bothColors &&
+            !isHost && (
+              <div
+                style={{
+                  marginTop: 15,
+                  padding: 14,
+                  borderRadius: 12,
+                  background:
+                    "rgba(201,162,39,0.08)",
+                  fontSize: 12,
+                }}
+              >
+                ✅ Kedua warna sudah
+                dipilih. Menunggu
+                host memulai game.
+              </div>
+            )}
 
           {message && (
             <Message>
               {message}
             </Message>
           )}
+
+          /*
+            ======================
+            START BUTTON
+            ======================
+          */
+
+          {isHost && (
+            <button
+              style={{
+                ...primaryButton,
+                marginTop: 15,
+                opacity: canStart
+                  ? 1
+                  : 0.45,
+                cursor: canStart
+                  ? "pointer"
+                  : "not-allowed",
+              }}
+              disabled={
+                !canStart ||
+                loading
+              }
+              onClick={
+                startPvPGame
+              }
+            >
+              {loading
+                ? "⏳ Memulai..."
+                : "♟️ Mulai Game"}
+            </button>
+          )}
         </Panel>
       </Page>
     );
   }
 
-  /* =======================================================
-     SAFETY
-  ======================================================= */
+  /*
+    ==========================
+    SAFETY
+    ==========================
+  */
 
   if (!gameState) {
     return null;
   }
 
-  /* =======================================================
-     BOARD
-  ======================================================= */
-
   const board =
-    normalizeBoard(
-      gameState.board
-    );
+    gameState.board || [];
 
   const displayRows =
     myColor === "black"
-      ? [...Array(8).keys()].reverse()
-      : [...Array(8).keys()];
+      ? [
+          ...Array(8).keys(),
+        ].reverse()
+      : [
+          ...Array(8).keys(),
+        ];
 
   const displayCols =
     myColor === "black"
-      ? [...Array(8).keys()].reverse()
-      : [...Array(8).keys()];
+      ? [
+          ...Array(8).keys(),
+        ].reverse()
+      : [
+          ...Array(8).keys(),
+        ];
 
   const isHost =
     isPvP &&
     roomData?.hostId ===
       playerId;
+
+  /*
+    ==========================
+    GAME BOARD
+    ==========================
+  */
 
   return (
     <Page alignTop>
@@ -3018,8 +3104,7 @@ function Chess() {
             width: "100%",
             maxWidth: 620,
             margin: "0 auto",
-            aspectRatio:
-              "1 / 1",
+            aspectRatio: "1 / 1",
             display: "grid",
             gridTemplateColumns:
               "repeat(8, 1fr)",
@@ -3075,7 +3160,8 @@ function Chess() {
                       style={{
                         position:
                           "relative",
-                        border: "none",
+                        border:
+                          "none",
                         padding: 0,
                         margin: 0,
                         aspectRatio:
@@ -3182,8 +3268,7 @@ function Chess() {
                               "none",
                           }}
                         >
-                          {8 -
-                            row}
+                          {8 - row}
                         </span>
                       )}
 
@@ -3203,8 +3288,7 @@ function Chess() {
                           }}
                         >
                           {String.fromCharCode(
-                            97 +
-                              col
+                            97 + col
                           )}
                         </span>
                       )}
@@ -3238,7 +3322,8 @@ function Chess() {
             gap: 8,
             justifyContent:
               "center",
-            flexWrap: "wrap",
+            flexWrap:
+              "wrap",
             marginTop: 12,
           }}
         >
@@ -3310,9 +3395,11 @@ function Chess() {
         </div>
       </div>
 
-      {/* ===================================================
-          PROMOTION MODAL
-      =================================================== */}
+      /*
+        ======================
+        PROMOTION MODAL
+        ======================
+      */
 
       {pendingPromotion && (
         <div
@@ -3419,11 +3506,11 @@ function Chess() {
                 ...secondaryButton,
                 marginTop: 12,
               }}
-              onClick={() => {
+              onClick={() =>
                 setPendingPromotion(
                   null
-                );
-              }}
+                )
+              }
             >
               Batal
             </button>
@@ -3434,9 +3521,11 @@ function Chess() {
   );
 }
 
-/* =========================================================
-   UI COMPONENTS
-========================================================= */
+/*
+  ==========================
+  UI COMPONENTS
+  ==========================
+*/
 
 function Page({
   children,
@@ -3452,10 +3541,9 @@ function Page({
         display: "flex",
         justifyContent:
           "center",
-        alignItems:
-          alignTop
-            ? "flex-start"
-            : "center",
+        alignItems: alignTop
+          ? "flex-start"
+          : "center",
         padding: 20,
         boxSizing:
           "border-box",
@@ -3497,7 +3585,8 @@ function Panel({
 }
 
 function ModeButton({
-  children,
+  icon,
+  label,
   active,
   onClick,
 }) {
@@ -3531,7 +3620,7 @@ function ModeButton({
           fontSize: 25,
         }}
       >
-        {children[0]}
+        {icon}
       </span>
 
       <span
@@ -3539,18 +3628,19 @@ function ModeButton({
           fontSize: 11,
         }}
       >
-        {children[1]}
+        {label}
       </span>
     </button>
   );
 }
 
-function PlayerSeat({
+function ColorSeat({
   color,
   player,
   mine,
-  canChoose,
+  selected,
   onChoose,
+  disabled,
 }) {
   const isWhite =
     color === "white";
@@ -3559,20 +3649,22 @@ function PlayerSeat({
     <div
       style={{
         padding: 16,
-        borderRadius: 14,
+        borderRadius: 16,
         background:
           "rgba(255,255,255,0.04)",
         border:
-          mine
+          selected
             ? `2px solid ${GOLD}`
-            : player
-            ? "2px solid rgba(201,162,39,0.5)"
             : "1px solid rgba(201,162,39,0.2)",
+        opacity:
+          disabled && !selected
+            ? 0.75
+            : 1,
       }}
     >
       <div
         style={{
-          fontSize: 28,
+          fontSize: 30,
         }}
       >
         {isWhite
@@ -3596,12 +3688,13 @@ function PlayerSeat({
           fontSize: 11,
           opacity: 0.65,
           marginTop: 4,
+          minHeight: 17,
         }}
       >
         {player
           ? player.name ||
             "Player"
-          : "Kosong"}
+          : "Belum dipilih"}
       </div>
 
       {mine && (
@@ -3617,30 +3710,58 @@ function PlayerSeat({
         </div>
       )}
 
-      {canChoose && (
+      {!player && !disabled && (
         <button
           onClick={onChoose}
           style={{
-            marginTop: 10,
             width: "100%",
-            minHeight: 36,
-            borderRadius: 9,
+            marginTop: 10,
             border:
-              `1px solid ${GOLD}`,
+              "1px solid rgba(201,162,39,0.7)",
+            borderRadius: 10,
             background:
-              player?.color ===
-              color
-                ? "rgba(201,162,39,0.2)"
-                : "#14110F",
+              "#14110F",
             color: CREAM,
-            fontSize: 11,
-            fontWeight: 900,
-            cursor: "pointer",
+            padding:
+              "10px 8px",
+            cursor:
+              "pointer",
+            fontWeight: 800,
           }}
         >
-          {mine &&
-          player?.color ===
-            color
+          Pilih{" "}
+          {isWhite
+            ? "Putih"
+            : "Hitam"}
+        </button>
+      )}
+
+      {mine && (
+        <button
+          onClick={onChoose}
+          disabled={disabled}
+          style={{
+            width: "100%",
+            marginTop: 10,
+            border:
+              selected
+                ? `1px solid ${GOLD}`
+                : "1px solid rgba(201,162,39,0.35)",
+            borderRadius: 10,
+            background:
+              selected
+                ? "rgba(201,162,39,0.16)"
+                : "#14110F",
+            color: CREAM,
+            padding:
+              "10px 8px",
+            cursor: disabled
+              ? "not-allowed"
+              : "pointer",
+            fontWeight: 800,
+          }}
+        >
+          {selected
             ? "✓ Dipilih"
             : `Pilih ${
                 isWhite
@@ -3649,6 +3770,19 @@ function PlayerSeat({
               }`}
         </button>
       )}
+
+      {player &&
+        !mine && (
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 10,
+              opacity: 0.55,
+            }}
+          >
+            Dipilih player lain
+          </div>
+        )}
     </div>
   );
 }
@@ -3672,10 +3806,6 @@ function Message({
     </div>
   );
 }
-
-/* =========================================================
-   STYLES
-========================================================= */
 
 const primaryButton = {
   width: "100%",
@@ -3741,7 +3871,8 @@ const inputStyle = {
   fontWeight: 900,
   letterSpacing: 5,
   padding: "0 16px",
-  textTransform: "uppercase",
+  textTransform:
+    "uppercase",
   boxShadow:
     "inset 0 2px 8px rgba(0,0,0,0.35)",
   marginBottom: 10,
@@ -3756,9 +3887,8 @@ const smallChoice = {
   padding: 8,
 };
 
-/* =========================================================
-   EXPORT
-========================================================= */
-
-export { Chess };
+/*
+  IMPORTANT:
+  Named export + default export.
+*/
 export default Chess;
