@@ -24,6 +24,8 @@ import {
   findKing,
 } from "./chessLogic";
 
+import { ChessBot } from "./ChessBot";
+
 const GOLD = "#C9A227";
 const CREAM = "#F5EFE0";
 const BG = "#1a1310";
@@ -178,6 +180,15 @@ export function Chess() {
 
   const [roomData, setRoomData] =
     useState(null);
+
+  // VS Bot adalah mode lokal terpisah.
+  // Jalur multiplayer/Firebase di bawah ini tetap memakai roomId seperti semula.
+  const [botMode, setBotMode] = useState(() => {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+    return params.get("mode") === "bot";
+  });
 
   const [gameState, setGameState] =
     useState(null);
@@ -1060,6 +1071,25 @@ export function Chess() {
       : null;
 
   // =========================================
+  // VS BOT
+  // =========================================
+
+  if (botMode) {
+    return (
+      <ChessBot
+        onBack={() => {
+          setBotMode(false);
+          window.history.replaceState(
+            {},
+            "",
+            `${window.location.pathname}?game=chess`
+          );
+        }}
+      />
+    );
+  }
+
+  // =========================================
   // NO ROOM
   // =========================================
 
@@ -1203,6 +1233,31 @@ export function Chess() {
               {message}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setBotMode(true);
+              window.history.replaceState(
+                {},
+                "",
+                `${window.location.pathname}?game=chess&mode=bot`
+              );
+            }}
+            style={{
+              marginTop: "12px",
+              width: "100%",
+              background: "rgba(201,162,39,0.16)",
+              color: CREAM,
+              border: `1px solid ${GOLD}`,
+              borderRadius: "9px",
+              padding: "11px 15px",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            ♟ VS Bot
+          </button>
 
           <button
             type="button"
