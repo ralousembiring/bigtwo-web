@@ -6,6 +6,8 @@ import { UlarTangga } from "./UlarTangga.jsx";
 import { Chess } from "./chess.jsx";
 import { BomBomGame } from "./BomBom.jsx";
 import { BomBomArena3D } from "./BomBomArena3D.jsx";
+import FootballGame from "./football/FootballGame.jsx";
+import HomeHub from "./HomeHub.jsx";
 import {
   SUITS,
   rankLabel,
@@ -1070,170 +1072,82 @@ function SeatRow({ seat, game, displayName, cream, vertical, amIHost, makeBot, p
   );
 }
 
-function HomeHub() {
-  const navigate = (game) => {
-    const url = new URL(window.location.href);
-    url.search = `?game=${game}`;
-    window.history.pushState({}, "", url);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
-
-  const cardStyle = {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(201,162,39,0.25)",
-    borderRadius: 16,
-    padding: 18,
-    color: "#F5EFE0",
-    cursor: "pointer",
-    textAlign: "left",
-    transition: "transform .15s ease, background .15s ease",
-  };
-
-  return (
-    <div style={{ fontFamily: "system-ui, sans-serif", background: "#1a1310", minHeight: "100vh", color: "#F5EFE0", padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 760, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", padding: "24px 0 18px" }}>
-          <div style={{ fontSize: 12, letterSpacing: 2, opacity: .65 }}>RALOU GAME HUB</div>
-          <h1 style={{ fontFamily: "Georgia, serif", color: "#C9A227", fontSize: 32, margin: "8px 0" }}>Pilih Game</h1>
-          <div style={{ fontSize: 13, opacity: .75 }}>Satu web, beberapa game multiplayer.</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-          <button style={cardStyle} onClick={() => navigate("big-two")}>
-            <div style={{ fontSize: 32 }}>🃏</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Big Two</div>
-            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Game kartu multiplayer.</div>
-          </button>
-          <button style={cardStyle} onClick={() => navigate("undercover")}>
-            <div style={{ fontSize: 32 }}>🕵️</div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>Undercover</div>
-            <div style={{ fontSize: 12, opacity: .7, marginTop: 5 }}>Cari pemain yang mendapat kata berbeda (Undercover) dan Mr.White.</div>
-          </button>
-          <button
-  style={cardStyle}
-  onClick={() => navigate("snakes")}
->
-  <div style={{ fontSize: 32 }}>🐍</div>
-
-  <div
-    style={{
-      fontSize: 18,
-      fontWeight: 700,
-      marginTop: 8,
-    }}
-  >
-    Ular Tangga
-  </div>
-
-  <div
-    style={{
-      fontSize: 12,
-      opacity: .7,
-      marginTop: 5,
-    }}
-  >
-    Game papan (Ular Tangga) multipalyer.
-  </div>
-</button>
-          <button
-  style={cardStyle}
-  onClick={() => navigate("chess")}
->
-  <div style={{ fontSize: 32 }}>♟️</div>
-
-  <div
-    style={{
-      fontSize: 18,
-      fontWeight: 700,
-      marginTop: 8,
-    }}
-  >
-    Chess
-  </div>
-
-  <div
-    style={{
-      fontSize: 12,
-      opacity: 0.7,
-      marginTop: 5,
-    }}
-  >
-    Game catur multiplayer 2 pemain.
-  </div>
-</button>
-<button
-  style={cardStyle}
-  onClick={() => navigate("bom-bom")}
->
-  <div style={{ fontSize: 32 }}>💣</div>
-
-  <div
-    style={{
-      fontSize: 18,
-      fontWeight: 700,
-      marginTop: 8,
-    }}
-  >
-    Bom-Bom
-  </div>
-
-  <div
-    style={{
-      fontSize: 12,
-      opacity: 0.7,
-      marginTop: 5,
-    }}
-  >
-    Game arena multiplayer dengan bom.
-  </div>
-</button>
-        </div>
-                <div style={{ textAlign: "center", marginTop: 20 }}>
-          <SupportButton />
-          
-
-          <div style={{ fontSize: 10, opacity: .5, marginTop: 7 }}>
-            Suka game di Ralou Game Hub? Dukunganmu membantu pengembangan game.
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, opacity: .5 }}>
-          @Ralou 2026
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function App() {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const handler = () => force((v) => v + 1);
-    window.addEventListener("popstate", handler);
-    return () => window.removeEventListener("popstate", handler);
-  }, []);
-  return <GameRouter />;
-}
+// ======================================================
+// GAME ROUTER
+// ======================================================
 
 function GameRouter() {
-
   const params = new URLSearchParams(window.location.search);
 
   const game = params.get("game");
-
   const room = params.get("room");
 
-  if (game === "undercover") return <UndercoverGame />;
+  function backToGameHub() {
+    window.history.pushState({}, "", window.location.pathname);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
 
-  if (game === "snakes") return <UlarTangga />;
+  if (game === "undercover") {
+    return <UndercoverGame />;
+  }
 
-  if (game === "chess") return <Chess />;
+  if (game === "snakes") {
+    return <UlarTangga />;
+  }
 
-  if (game === "bom-bom") return <BomBomGame />;
+  if (game === "chess") {
+    return <Chess />;
+  }
 
-  if (game === "arena-test") return <BomBomArena3D />;
+  if (game === "bom-bom") {
+    return <BomBomGame />;
+  }
 
-  if (game === "big-two" || room) return <BigTwoGame />;
-  
+  if (game === "arena-test") {
+    return <BomBomArena3D />;
+  }
+
+  if (game === "football") {
+    return (
+      <FootballGame
+        backToGameHub={backToGameHub}
+      />
+    );
+  }
+
+  if (game === "big-two" || room) {
+    return <BigTwoGame />;
+  }
 
   return <HomeHub />;
 }
+
+
+// ======================================================
+// MAIN APP
+// ======================================================
+
+function App() {
+  const [, setRoute] = useState(window.location.href);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(window.location.href);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  return <GameRouter />;
+}
+
+
+// ======================================================
+// DEFAULT EXPORT
+// ======================================================
+
+export default App;
