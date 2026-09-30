@@ -1942,24 +1942,25 @@ export default function FootballGame({ backToGameHub }) {
   function substituteSlot(slotId, cardId) {
     const slot = FORMATIONS[formation]?.find((i) => i.id === slotId);
     const card = getFootballCardById(cardId);
-    if (!slot || !card) return;
+    if (!slot || !card) return false;
     if (!isCompatiblePosition(card, slot.label)) {
       setMessage(`${card.name} tidak cocok untuk posisi ${slot.label}.`);
-      return;
+      return false;
     }
     if (findSameNameInSquad(squad, card, slotId)) {
       setMessage(`${card.name} sudah ada di squad, pemain dengan nama sama tidak bisa dimasukkan lagi.`);
-      return;
+      return false;
     }
     const used = Object.entries(squad).filter(([sid, id]) => sid !== slotId && id === cardId).length;
     if (used >= (collectionCounts[cardId] || 0)) {
       setMessage("Jumlah kartu yang lu punya tidak cukup untuk memakai copy ini lagi.");
-      return;
+      return false;
     }
     const nextSquad = { ...squad, [slotId]: cardId };
     setSquad(nextSquad);
     saveData(coins, collection, nextSquad, formation, dailyClaimDate, history);
     setMessage(`${card.name} masuk menggantikan pemain di ${slot.label}.`);
+    return true;
   }
 
   function playMatch() {
@@ -2227,6 +2228,16 @@ export default function FootballGame({ backToGameHub }) {
             ready={activeSquadCardIds.length === 11 && !!activeSquad.GK}
             onReward={addCoins}
             teamName={teamName}
+            formations={Object.keys(FORMATIONS)}
+            formation={formation}
+            onFormation={changeFormation}
+            squad={activeSquad}
+            collection={collection}
+            counts={collectionCounts}
+            getCard={getCardById}
+            canPlay={isCompatiblePosition}
+            onSub={substituteSlot}
+            suspended={suspended}
           />
         )}
 
@@ -3208,7 +3219,9 @@ function initSim(slotsH, slotsA, T, gg, namesH = [], namesA = [], numsH = [], nu
     ps: [...mkPlayers(0, fromSlots(slotsH), namesH, numsH), ...mkPlayers(1, fromSlots(slotsA), namesA, numsA)],
     ball: { x: W / 2, y: H / 2, vx: 0, vy: 0, z: 0 }, owner: null, mode: "sp", poss: 0, last: 0, score: [0, 0],
     min: 0, t: 0, pause: .6, decide: 1, flight: 0, ft0: 1, zpk: 0, trail: [], flash: null, ht: false, done: false, T, gg,
-    log: [], sp: null, rc: [0, 0], reds: [], cardShow: null, net: null, idle: 0, tn: null,
+    // holdReason: null = main game, "stoppage" = substitution window, "halftime" = half time
+    holdReason: null, deadReason: null,
+    log: [], sp: null, subAvailable: false, subReason: null, pendingSubs: [], subbedOutNames: [], rc: [0, 0], reds: [], cardShow: null, net: null, idle: 0, tn: null,
     stats: { shots: [0, 0], fouls: [0, 0], corners: [0, 0], yc: [0, 0], rc: [0, 0] },
     ref: { x: W / 2 - 30, y: H / 2 + 30 }
   };
@@ -3227,6 +3240,26 @@ function kickoff(s, team, tp) {
   const o = cand[Math.floor(rnd() * cand.length)] || outf(s, team)[0];
   if (tp) { o.x = W / 2; o.y = H / 2; }
   startSP(s, "kickoff", team, W / 2, H / 2, { wait: tp ? 1.3 : 2.4, taker: o.i });
+}
+
+function applySimSubstitution(s, item) {
+  if (!item) return;
+  const q = s.ps[item.qIndex];
+  if (!q || q.off) return;
+  const card = item.card || {};
+  q.name = card.name || q.name || "";
+  q.num = item.num || q.num || null;
+  q.role = item.role || q.role;
+  q.off = false; q.gone = false; q.down = 0;
+  q.dv = null; q.dvT = 0; q.dvA = 0;
+  q.hx = q.x; q.hy = q.y;
+  if (typeof s.commitSubstitution === "function") s.commitSubstitution(item);
+}
+
+function applyPendingSubs(s) {
+  if (!s.pendingSubs?.length) return;
+  s.pendingSubs.forEach((item) => applySimSubstitution(s, item));
+  s.pendingSubs = [];
 }
 
 function startSP(s, kind, team, x, y, o = {}) {
@@ -3256,6 +3289,20 @@ function startSP(s, kind, team, x, y, o = {}) {
     sp.marks = outf(s, 1 - team).sort(byDist({ x, y })).slice(0, 2).map((p) => p.i);
   }
   s.sp = sp;
+
+  // Bola mati = window pergantian pemain, tetapi MATCH TETAP BERJALAN.
+  // Kick-off tidak membuka window karena permainan langsung dimulai.
+  const subKinds = ["throw", "corner", "goalkick", "freekick", "penalty", "goal"];
+  if (subKinds.includes(kind) && !s.done) {
+    s.subAvailable = true;
+    s.subReason =
+      kind === "throw" ? "Bola keluar lapangan" :
+      kind === "corner" ? "Tendangan pojok" :
+      kind === "goalkick" ? "Tendangan gawang" :
+      kind === "penalty" ? "Penalti" :
+      kind === "goal" ? "Setelah gol" :
+      "Pelanggaran / tendangan bebas";
+  }
   return sp;
 }
 
@@ -3264,6 +3311,7 @@ function launch(s, team, tx, ty, spd, mode, zpk = 0) {
   b.vx = (tx - b.x) / ft; b.vy = (ty - b.y) / ft;
   s.flight = ft; s.ft0 = ft; s.zpk = zpk; s.mode = mode; s.poss = team; s.last = team;
   s.owner = null; s.sp = null; s.lt = { x: tx, y: ty }; s.idle = 0;
+  if (mode !== "pass" && mode !== "cross") s.offsideTarget = -1;
 }
 
 /* ---------- keputusan pemain ---------- */
@@ -3286,6 +3334,24 @@ function pickPass(s, o) {
   return best || outf(s, t).filter((p) => p.i !== o.i).sort(byDist(o))[0];
 }
 
+function isOffsideAtPass(s, passer, receiver) {
+  if (!receiver || receiver.team !== passer.team || receiver.role === "gk") return false;
+  const t = passer.team, dir = t ? -1 : 1;
+  // Offside hanya mungkin di area lawan dan penerima harus lebih dekat ke gawang
+  // daripada bola serta pemain bertahan kedua terakhir saat umpan dilepas.
+  const halfway = W / 2;
+  const inOppHalf = t === 0 ? receiver.x > halfway : receiver.x < halfway;
+  if (!inOppHalf) return false;
+  if (t === 0 && receiver.x <= passer.x) return false;
+  if (t === 1 && receiver.x >= passer.x) return false;
+  const defenders = outf(s, 1 - t).filter((p) => !p.off && !p.gone).sort((a, b) =>
+    t === 0 ? b.x - a.x : a.x - b.x
+  );
+  if (defenders.length < 2) return false;
+  const secondLast = defenders[1];
+  return t === 0 ? receiver.x > secondLast.x : receiver.x < secondLast.x;
+}
+
 function doPass(s, o) {
   const t = o.team, c = pickPass(s, o);
   if (!c) { s.decide = .5; return; }
@@ -3301,15 +3367,16 @@ function doPass(s, o) {
       mode = "outpass";
     } else { tx = clamp(tx + (rnd() - .5) * 110, GL0 + 8, GL1 - 8); ty = clamp(ty + (rnd() - .5) * 110, TL0 + 8, TL1 - 8); mode = "loose"; }
   }
-  launch(s, t, tx, ty, d > 190 ? 262 : 228, mode, d > 190 ? 26 : 0);
   s.target = c.i;
+  s.offsideTarget = mode === "pass" && isOffsideAtPass(s, o, c) ? c.i : -1;
+  launch(s, t, tx, ty, d > 190 ? 262 : 228, mode, d > 190 ? 26 : 0);
 }
 
 function cross(s, o) {
   const t = o.team, gx = gxOf(t), dir = t ? -1 : 1;
   const tx = gx - dir * (48 + rnd() * 60), ty = H / 2 + (rnd() - .5) * 90;
   const tg = outf(s, t).filter((p) => p.i !== o.i).sort(byDist({ x: tx, y: ty }))[0];
-  s.ball.x = o.x; s.ball.y = o.y; s.target = tg.i; s.xk = "cross";
+  s.ball.x = o.x; s.ball.y = o.y; s.target = tg.i; s.offsideTarget = isOffsideAtPass(s, o, tg) ? tg.i : -1; s.xk = "cross";
   s.flash = { text: "UMPAN SILANG", t: .9 };
   launch(s, t, tx, ty, 250, "cross", 52);
 }
@@ -3509,6 +3576,15 @@ function resolveCross(s) {
 function land(s) {
   const ps = s.ps, b = s.ball, m = s.mode;
   b.x = s.lt.x; b.y = s.lt.y; b.z = 0;
+  if ((m === "pass" || m === "cross") && s.offsideTarget >= 0) {
+    const offP = ps[s.offsideTarget];
+    const defendingTeam = 1 - s.poss;
+    s.flash = { text: "🚩 OFFSIDE!", t: 1.8 };
+    note(s, `🚩 Offside — ${pname(offP)} (${tname(s, s.poss)})`);
+    s.offsideTarget = -1;
+    startSP(s, "freekick", defendingTeam, s.lt.x, s.lt.y, { shot: false, wait: 1.8 });
+    return;
+  }
   if (m === "pass") {
     let r = ps[s.target];
     if (!r || r.off || dsc(r, s.lt) > 45) r = outf(s, s.poss).sort(byDist(s.lt))[0];
@@ -3602,11 +3678,15 @@ function step(s, dt) {
   if (s.pause > 0) { s.pause -= dt; return; }
   s.min += dt * MIN_RATE; s.t += dt;
   if (!s.ht && s.min >= 45) {
-    s.ht = true; s.sp = null;
+    s.ht = true; s.sp = null; s.subAvailable = false; s.subReason = null;
     kickoff(s, 1, true); s.pause = 1.2;
     note(s, "⏱ Babak pertama selesai");
-    if (s.hb) { s.hold = true; s.flash = { text: "⏸ HALF TIME", t: 1e6 }; }
-    else s.flash = { text: "BABAK KEDUA", t: 1.5 };
+    if (s.hb) {
+      s.hold = true;
+      s.holdReason = "halftime";
+      s.deadReason = null;
+      s.flash = { text: "⏸ HALF TIME", t: 1e6 };
+    } else s.flash = { text: "BABAK KEDUA", t: 1.5 };
     return;
   }
   if (s.min >= 90) { s.done = true; note(s, "🏁 Peluit panjang — pertandingan selesai"); return; }
@@ -3632,7 +3712,12 @@ function step(s, dt) {
   } else if (s.mode === "sp") {
     const sp = s.sp; sp.t += dt;
     if (sp.kind === "gkhold") { const g = ps[sp.taker]; b.x = g.x + (g.team ? -1 : 1) * 7; b.y = g.y; b.z = 8; }
-    if (sp.t >= sp.wait) runSP(s);
+    if (sp.t >= sp.wait) {
+      applyPendingSubs(s);
+      s.subAvailable = false;
+      s.subReason = null;
+      runSP(s);
+    }
   } else {
     b.x += b.vx * dt; b.y += b.vy * dt; s.flight -= dt;
     const f = clamp(1 - s.flight / s.ft0, 0, 1); b.z = 4 * s.zpk * f * (1 - f);
@@ -3806,7 +3891,7 @@ const tac = (t, o) => ({ atk: o + (t === "attack" ? 4 : t === "defense" ? -3 : 0
 function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], playerNamesAway = [], playerNumbersHome = [], playerNumbersAway = [], goldenGoal, onFinish, publish, halftimeBreak, mySide = 0, renderHalftime, onRed }) {
   const cv = useRef(null), sim = useRef(null), spd = useRef(1), fin = useRef(onFinish), redCb = useRef(onRed);
   const [speed, setSpeed] = useState(1);
-  const [ui, setUi] = useState({ a: 0, b: 0, m: 0, done: false, h: false, log: [], st: null });
+  const [ui, setUi] = useState({ a: 0, b: 0, m: 0, done: false, h: false, subAvailable: false, subReason: null, blockedSubNames: [], log: [], st: null });
   const [tacHt, setTacHt] = useState((mySide ? away : home).tactic);
   fin.current = onFinish; redCb.current = onRed;
 
@@ -3834,11 +3919,15 @@ function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], p
         const rd = s.reds[redSeen++];
         if (rd.team === mySide && redCb.current) redCb.current(rd);
       }
-      const k = `${s.score}|${Math.floor(s.min)}|${s.done}|${!!s.hold}|${s.log.length}`;
+      const k = `${s.score}|${Math.floor(s.min)}|${s.done}|${!!s.hold}|${s.holdReason || ""}|${s.deadReason || ""}|${!!s.subAvailable}|${s.subReason || ""}|${s.subbedOutNames?.length || 0}|${s.log.length}`;
       if (k !== key) {
         key = k;
         setUi({
           a: s.score[0], b: s.score[1], m: Math.min(90, Math.floor(s.min)), done: s.done, h: !!s.hold,
+          subAvailable: !!s.subAvailable,
+          subReason: s.subReason || null,
+          blockedSubNames: [...(s.subbedOutNames || [])],
+          holdReason: s.holdReason || null, deadReason: s.deadReason || null,
           log: s.log.slice(-7).reverse(), st: JSON.parse(JSON.stringify(s.stats))
         });
       }
@@ -3859,15 +3948,118 @@ function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], p
     const s = sim.current;
     if (!s || !s.hold || publish || mySide) return;
     s.T[0] = tac(tacHt, home.ovr);
+    const pendingByIndex = new Set((s.pendingSubs || []).map((item) => item.qIndex));
     if (slotsHome) mkPlayers(0, fromSlots(slotsHome), playerNamesHome, playerNumbersHome).forEach((n, i) => {
       const q = s.ps[i];
       if (q.off || q.gone) return;
-      q.hx = q.x = n.hx; q.hy = q.y = n.hy; q.role = n.role; q.name = n.name; q.num = n.num;
+      q.hx = q.x = n.hx; q.hy = q.y = n.hy; q.role = n.role;
+      if (!pendingByIndex.has(i)) {
+        q.name = n.name; q.num = n.num;
+      }
     });
     // eslint-disable-next-line
   }, [home.ovr, slotsHome, playerNamesHome, playerNumbersHome]);
 
-  const skip = () => { const s = sim.current; let g = 0; while (!s.done && g++ < 9000) step(s, .05); };
+  // Pergantian yang dipilih saat permainan masih berjalan hanya DIANTRIKAN.
+  // Pemain baru benar-benar masuk ketika bola mati / half time / jeda manual.
+  const liveSubstitute = (slotId, card) => {
+    const s = sim.current;
+    const teamSlots = mySide === 0 ? slotsHome : slotsAway;
+    const teamNumbers = mySide === 0 ? playerNumbersHome : playerNumbersAway;
+    if (!s || !card || !teamSlots) return false;
+    const canSubNow = !!s.subAvailable || (s.hold && (s.holdReason === "manual" || s.holdReason === "halftime"));
+    if (!canSubNow) return false;
+    const idx = teamSlots.findIndex((slot) => slot.id === slotId);
+    if (idx < 0 || idx >= 11) return false;
+    const qIndex = mySide * 11 + idx;
+    const q = s.ps[qIndex];
+    if (!q || q.off) return false;
+
+    const slot = teamSlots[idx];
+    const label = String(slot?.label || "").toUpperCase();
+    const role = label === "GK" ? "gk" :
+      ["CB", "LB", "RB", "LWB", "RWB", "SW", "DF"].includes(label) ? "def" :
+      ["CM", "CDM", "CAM", "LM", "RM", "DM", "MF"].includes(label) ? "mid" : "fwd";
+
+    const oldName = q.name || "";
+    if (oldName && oldName !== card.name && !s.subbedOutNames.includes(oldName)) {
+      s.subbedOutNames.push(oldName);
+    }
+
+    const item = { qIndex, slotId, card, num: teamNumbers[idx] || q.num || null, role, oldName };
+    // PENTING: Jeda manual / halftime TIDAK membuat pemain langsung masuk.
+    // Semua pilihan pergantian tetap antre dan baru dieksekusi pada momen sah.
+    const old = s.pendingSubs.findIndex((x) => x.qIndex === qIndex);
+    if (old >= 0) s.pendingSubs[old] = item;
+    else s.pendingSubs.push(item);
+    s.flash = { text: `🔄 ${card.name} SIAP MASUK`, t: 1.4 };
+    note(s, `🔄 Pergantian ${oldName || "pemain"} → ${card.name} menunggu momen bola mati`);
+    return true;
+  };
+
+  const resumeMatch = () => {
+    const s = sim.current;
+    if (!s || !s.hold) return;
+    s.hold = false;
+    s.holdReason = null;
+    s.deadReason = null;
+    s.flash = null;
+  };
+
+  const pauseMatch = () => {
+    const s = sim.current;
+    if (!s || s.done || s.hold) return;
+    s.hold = true;
+    s.holdReason = "manual";
+    s.deadReason = null;
+    s.flash = { text: "⏸ JEDA", t: 1e6 };
+  };
+
+  const resumeManualPause = () => {
+    const s = sim.current;
+    if (!s || !s.hold || s.holdReason !== "manual") return;
+    s.hold = false;
+    s.holdReason = null;
+    s.deadReason = null;
+    s.flash = null;
+  };
+
+  const skip = () => {
+    const s = sim.current;
+    if (!s || s.done) return;
+
+    // Skip memang harus menyelesaikan pertandingan sampai FT.
+    // Jadi semua jeda pergantian pemain/half-time dilewati sementara.
+    const oldHold = s.hold;
+    const oldReason = s.holdReason;
+    const oldDeadReason = s.deadReason;
+    const oldPause = s.pause;
+
+    s.hold = false;
+    s.holdReason = null;
+    s.deadReason = null;
+    s.pause = 0;
+
+    let g = 0;
+    while (!s.done && g++ < 20000) {
+      // Kalau step membuat hold baru (mis. bola mati atau half time),
+      // Skip langsung membuka lagi agar simulasi terus sampai selesai.
+      step(s, .05);
+      if (s.hold) {
+        s.hold = false;
+        s.holdReason = null;
+        s.deadReason = null;
+        s.pause = 0;
+      }
+    }
+
+    if (!s.done) {
+      s.hold = oldHold;
+      s.holdReason = oldReason;
+      s.deadReason = oldDeadReason;
+      s.pause = oldPause;
+    }
+  };
 
   return (
     <div>
@@ -3881,7 +4073,12 @@ function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], p
         {!publish && [1, 2, 4].map((v) => (
           <button key={v} style={btn(speed === v)} onClick={() => { spd.current = v; setSpeed(v); }}>{v}x</button>
         ))}
-        {!publish && !ui.done && <button style={btn(false)} onClick={skip}>⏭ Skip</button>}
+        {!publish && !ui.done && !ui.h && (
+          <>
+            <button style={btn(false)} onClick={pauseMatch}>⏸ Jeda</button>
+            <button style={btn(false)} onClick={skip}>⏭ Skip</button>
+          </>
+        )}
       </div>
       <canvas ref={cv} width={W} height={H}
         style={{ width: "100%", display: "block", borderRadius: 16, border: "3px solid rgba(245,239,224,.25)" }} />
@@ -3903,14 +4100,29 @@ function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], p
           ))}
         </div>
       )}
-      {ui.h && !publish && (
+      {ui.subAvailable && !publish && !ui.done && (
+        <div style={{ marginTop: 12, padding: 14, borderRadius: 14, background: SOFT, border: `1px solid rgba(201,162,39,.65)`, textAlign: "center" }}>
+          <div style={{ color: GOLD, fontWeight: 900, marginBottom: 5 }}>🔄 PERGANTIAN TERSEDIA</div>
+          <div style={{ fontSize: 12, opacity: .75, marginBottom: 10 }}>{ui.subReason || "Bola mati"} · pertandingan tetap berjalan</div>
+          {renderHalftime && renderHalftime({ liveSubstitute, blockedSubNames: ui.blockedSubNames || [] })}
+        </div>
+      )}
+      {ui.h && !publish && ui.holdReason === "manual" && (
+        <div style={{ marginTop: 12, padding: 14, borderRadius: 14, background: SOFT, border: "1px solid rgba(245,239,224,.25)", textAlign: "center" }}>
+          <div style={{ color: GOLD, fontWeight: 900, marginBottom: 6 }}>⏸ MATCH DIJEDA</div>
+          <div style={{ fontSize: 12, opacity: .7, marginBottom: 10 }}>Pertandingan benar-benar berhenti. Lu juga bisa melakukan pergantian pemain saat jeda manual.</div>
+          {renderHalftime && renderHalftime({ liveSubstitute, blockedSubNames: ui.blockedSubNames || [] })}
+          <button style={btn(true)} onClick={resumeManualPause}>▶ Lanjutkan Pertandingan</button>
+        </div>
+      )}
+      {ui.h && !publish && ui.holdReason === "halftime" && (
         <div style={{ marginTop: 12, padding: 14, borderRadius: 14, background: SOFT, border: `1px solid ${GOLD}`, textAlign: "center" }}>
-          <div style={{ color: GOLD, fontWeight: 900, marginBottom: 8 }}>⏸ HALF TIME — atur taktik babak kedua</div>
+          <div style={{ color: GOLD, fontWeight: 900, marginBottom: 8 }}>⏸ HALF TIME — atur taktik & pergantian pemain</div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
             <Tac v={tacHt} on={(x) => { setTacHt(x); sim.current.T[mySide] = tac(x, (mySide ? away : home).ovr); }} />
           </div>
-          {renderHalftime && renderHalftime()}
-          <button style={btn(true)} onClick={() => { sim.current.hold = false; sim.current.flash = null; }}>▶ Mulai Babak Kedua</button>
+          {renderHalftime && renderHalftime({ liveSubstitute, blockedSubNames: ui.blockedSubNames || [] })}
+          <button style={btn(true)} onClick={resumeMatch}>▶ Mulai Babak Kedua</button>
         </div>
       )}
     </div>
@@ -3961,7 +4173,7 @@ function table(L) {
   return t.sort((x, y) => y.Pts - x.Pts || (y.GF - y.GA) - (x.GF - x.GA) || y.GF - x.GF);
 }
 
-function LeaguePanel({ teamOverall, slots, ready, onReward, teamName = "RGame FC" }) {
+function LeaguePanel({ teamOverall, slots, ready, onReward, teamName = "RGame FC", formations = [], formation, onFormation, squad, collection = [], counts = {}, getCard, canPlay, onSub, suspended = {} }) {
   const [L, setL] = useState(() => {
     try { const r = JSON.parse(localStorage.getItem(KEY)); if (r?.teams) return r; } catch {}
     return newLeague(teamOverall, teamName);
@@ -3979,6 +4191,14 @@ function LeaguePanel({ teamOverall, slots, ready, onReward, teamName = "RGame FC
   const mine = round.find(([h, a]) => h === 0 || a === 0);
   const tb = table(L);
   const ovrOf = (i) => (i === 0 ? teamOverall || L.teams[0].ovr : L.teams[i].ovr);
+
+  // Nama pemain tim user diambil dari My Squad, sama seperti Tab Match.
+  const playerNames = useMemo(() => (
+    (slots || []).map((s) => {
+      const card = s?.id && squad?.[s.id] && getCard ? getCard(squad[s.id]) : null;
+      return card?.name || s?.name || s?.playerName || "";
+    })
+  ), [slots, squad, getCard]);
 
   function apply(hg, ag) {
     const res = round.map(([h, a]) => (h === 0 || a === 0 ? { h, a, hg, ag }
@@ -4008,9 +4228,30 @@ function LeaguePanel({ teamOverall, slots, ready, onReward, teamName = "RGame FC
       <div style={box}>
         <MatchCanvas key={L.round} home={live.home} away={live.away} halftimeBreak mySide={live.h === 0 ? 0 : 1}
           slotsHome={live.h === 0 ? slots : null} slotsAway={live.a === 0 ? slots : null}
-          playerNamesHome={live.h === 0 ? (slots || []).map((s) => s.name || s.playerName || "") : []}
-          playerNamesAway={live.a === 0 ? (slots || []).map((s) => s.name || s.playerName || "") : []}
-          onFinish={({ hg, ag }) => { apply(hg, ag); setLive(null); }} />
+          playerNamesHome={live.h === 0 ? playerNames : []}
+          playerNamesAway={live.a === 0 ? playerNames : []}
+          onFinish={({ hg, ag }) => { apply(hg, ag); setLive(null); }}
+          renderHalftime={({ liveSubstitute, blockedSubNames }) => (
+            <HalftimeTools
+              slots={slots}
+              formations={formations}
+              formation={formation}
+              onFormation={onFormation}
+              squad={squad}
+              collection={collection}
+              counts={counts}
+              getCard={getCard}
+              canPlay={canPlay}
+              onSub={(slotId, cardId) => {
+                const card = getCard?.(cardId);
+                return liveSubstitute?.(slotId, card) || false;
+              }}
+              liveSubstitute={liveSubstitute}
+              blockedSubNames={blockedSubNames}
+              suspended={suspended}
+            />
+          )}
+        />
       </div>
     );
   }
@@ -4433,7 +4674,17 @@ function QuickMatchPanel({ teamOverall, slots, ready, onRecord, formations = [],
         halftimeBreak
         onRed={handleRed}
         onFinish={finish}
-        renderHalftime={() => <HalftimeTools {...{ slots, formations, formation, onFormation, squad, collection, counts, getCard, canPlay, onSub, suspended, offIdx: redIdx, redIds }} />}
+        renderHalftime={({ liveSubstitute, blockedSubNames }) => (
+          <HalftimeTools
+            {...{ slots, formations, formation, onFormation, squad, collection, counts, getCard, canPlay, suspended, offIdx: redIdx, redIds }}
+            blockedSubNames={blockedSubNames}
+            onSub={(slotId, cardId) => {
+              const ok = onSub?.(slotId, cardId);
+              if (ok) liveSubstitute?.(slotId, getCard?.(cardId));
+              return ok;
+            }}
+          />
+        )}
       />
       {res && (
         <div style={{ textAlign: "center", marginTop: 16 }}>
@@ -4452,12 +4703,13 @@ function QuickMatchPanel({ teamOverall, slots, ready, onRecord, formations = [],
   );
 }
 
-function HalftimeTools({ slots, formations, formation, onFormation, squad, collection, counts, getCard, canPlay, onSub, suspended = {}, offIdx = [], redIds = [] }) {
+function HalftimeTools({ slots, formations, formation, onFormation, squad, collection, counts, getCard, canPlay, onSub, liveSubstitute, blockedSubNames = [], suspended = {}, offIdx = [], redIds = [] }) {
   const [sel, setSel] = useState(null);
   if (!getCard || !slots) return null;
   const slot = slots.find((s) => s.id === sel);
   const cands = slot ? [...new Set(collection)].map(getCard).filter((c) => c && canPlay(c, slot.label) &&
     !suspended[c.id] && !redIds.includes(c.id) &&
+    !blockedSubNames.includes(c.name) &&
     !findSameNameInSquad(squad, c, sel) &&
     Object.entries(squad).filter(([id, cid]) => id !== sel && cid === c.id).length < (counts[c.id] || 0)) : [];
   const lockForm = offIdx.length > 0;
@@ -4486,7 +4738,10 @@ function HalftimeTools({ slots, formations, formation, onFormation, squad, colle
       {slot && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
           {cands.length ? cands.map((c) => (
-            <button key={c.id} style={btn(false)} onClick={() => { onSub(sel, c.id); setSel(null); }}>{c.name} · {c.position} · {c.overall}</button>
+            <button key={c.id} style={btn(false)} onClick={() => {
+              const ok = onSub?.(sel, c.id);
+              setSel(null);
+            }}>{c.name} · {c.position} · {c.overall}</button>
           )) : <i style={{ opacity: .65 }}>Tidak ada pengganti yang cocok.</i>}
         </div>
       )}
