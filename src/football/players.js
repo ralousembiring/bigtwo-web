@@ -1270,6 +1270,7 @@ export const PLAYERS = [
       era: "2006-2010",
       rarity: "Epic",
       overall: 91,
+      photo: "/players/xavi.png",
       pace: 76,
       shooting: 76,
       passing: 99,
