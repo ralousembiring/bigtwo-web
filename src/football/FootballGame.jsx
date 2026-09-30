@@ -1284,6 +1284,71 @@ function isCompatiblePosition(card, slotPosition) {
   );
 }
 
+// ===== Aturan nama pemain unik di squad & nomor punggung =====
+function normName(name) {
+  return String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+// Cari pemain lain di squad yang namanya sama dengan `card`.
+// exceptSlotId = slot yang sedang diganti (boleh diisi ulang oleh nama yang sama).
+function findSameNameInSquad(squad, card, exceptSlotId = null) {
+  const key = normName(card?.name);
+  if (!key || !squad) return null;
+
+  for (const [slotId, cardId] of Object.entries(squad)) {
+    if (slotId === exceptSlotId) continue;
+    const other = getFootballCardById(cardId);
+    if (other && normName(other.name) === key) return { slotId, card: other };
+  }
+  return null;
+}
+
+function normalizeJersey(raw) {
+  const out = {};
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [cardId, n] of Object.entries(raw)) {
+      const num = Math.round(Number(n));
+      if (Number.isFinite(num) && num >= 1 && num <= 99) out[cardId] = num;
+    }
+  }
+  return out;
+}
+
+// Hasilkan { [slotId]: nomorPunggung } yang dijamin unik di formasi aktif.
+// Nomor custom didahulukan; pemain tanpa nomor custom dapat nomor urutan slot,
+// dan kalau bentrok diberi nomor terkecil yang masih kosong.
+function computeSlotNumbers(slots, squad, jersey = {}) {
+  const result = {};
+  const taken = new Set();
+
+  (slots || []).forEach((slot) => {
+    const cardId = squad[slot.id];
+    const n = cardId ? jersey[cardId] : null;
+    if (n && !taken.has(n)) {
+      result[slot.id] = n;
+      taken.add(n);
+    }
+  });
+
+  (slots || []).forEach((slot, i) => {
+    if (!squad[slot.id] || result[slot.id]) return;
+    let n = i + 1;
+    if (taken.has(n)) {
+      n = 1;
+      while (taken.has(n)) n++;
+    }
+    result[slot.id] = n;
+    taken.add(n);
+  });
+
+  return result;
+}
+
 function getSquadPlayers(squad) {
   return Object.entries(squad)
     .map(([slotId, cardId]) => {
@@ -1347,6 +1412,10 @@ export default function FootballGame({ backToGameHub }) {
   const [history, setHistory] = useState(
     normalizeHistory(localInitial?.history)
   );
+  // nomor punggung custom: { [cardId]: 1..99 }
+  const [jerseyNumbers, setJerseyNumbers] = useState(
+    normalizeJersey(localInitial?.jerseyNumbers)
+  );
   // pemain kena kartu merah: { [cardId]: true } -> tidak boleh main di Match berikutnya
   const [suspended, setSuspended] = useState(() => readSusp(playerKey));
 
@@ -1384,6 +1453,11 @@ export default function FootballGame({ backToGameHub }) {
     );
   }, [squad, formation]);
 
+  const slotNumberMap = useMemo(
+    () => computeSlotNumbers(FORMATIONS[formation], activeSquad, jerseyNumbers),
+    [formation, activeSquad, jerseyNumbers]
+  );
+
   const teamOverall = useMemo(() => getTeamOverall(activeSquad), [activeSquad]);
   const teamStrength = useMemo(() => getSquadStrength(activeSquad), [activeSquad]);
 
@@ -1404,6 +1478,9 @@ export default function FootballGame({ backToGameHub }) {
 
       if (!isCompatiblePosition(card, slotPosition)) continue;
 
+      // pemain dengan nama yang sudah ada di squad tidak bisa dipilih lagi
+      if (findSameNameInSquad(squad, card, selectedSlot)) continue;
+
       const owned = collectionCounts[cardId] || 0;
       const used = getSquadUsageCount(cardId);
 
@@ -1412,7 +1489,7 @@ export default function FootballGame({ backToGameHub }) {
     }
 
     return cards.sort((a, b) => b.overall - a.overall);
-  }, [selectedSlotData, collectionCounts, squadCardIds]);
+  }, [selectedSlotData, selectedSlot, collectionCounts, squadCardIds, squad]);
 
   useEffect(() => {
     const local = readLocalSave(playerKey);
@@ -1427,6 +1504,7 @@ export default function FootballGame({ backToGameHub }) {
       );
       setDailyClaimDate(local.dailyClaimDate || null);
       setHistory(normalizeHistory(local.history));
+      setJerseyNumbers(normalizeJersey(local.jerseyNumbers));
       setTeamName(local.teamName || "RGame FC");
     }
 
@@ -1448,6 +1526,7 @@ export default function FootballGame({ backToGameHub }) {
           );
           setDailyClaimDate(data.dailyClaimDate || null);
           setHistory(normalizeHistory(data.history));
+          setJerseyNumbers(normalizeJersey(data.jerseyNumbers));
           setTeamName(data.teamName || "RGame FC");
         }
 
@@ -1495,7 +1574,8 @@ export default function FootballGame({ backToGameHub }) {
     nextFormation = formation,
     nextDailyClaimDate = dailyClaimDate,
     nextHistory = history,
-    nextTeamName = teamName
+    nextTeamName = teamName,
+    nextJersey = jerseyNumbers
   ) {
     const payload = {
       coins: nextCoins,
@@ -1504,6 +1584,7 @@ export default function FootballGame({ backToGameHub }) {
       formation: nextFormation,
       dailyClaimDate: nextDailyClaimDate,
       history: nextHistory.slice(0, 20),
+      jerseyNumbers: nextJersey,
       teamName: String(nextTeamName || "RGame FC").trim().slice(0, 24) || "RGame FC",
       updatedAt: Date.now(),
     };
@@ -1612,6 +1693,14 @@ export default function FootballGame({ backToGameHub }) {
 
     if (!isCompatiblePosition(card, slot.label)) {
       setMessage(`${card.name} tidak cocok untuk posisi ${slot.label}.`);
+      return;
+    }
+
+    const sameName = findSameNameInSquad(squad, card, selectedSlot);
+    if (sameName) {
+      setMessage(
+        `${card.name} sudah ada di squad, jadi pemain dengan nama yang sama tidak bisa dimasukkan lagi.`
+      );
       return;
     }
 
@@ -1741,6 +1830,45 @@ export default function FootballGame({ backToGameHub }) {
     );
   }
 
+  function changeJerseyNumber(slotId, raw) {
+    const cardId = squad[slotId];
+    const card = cardId ? getFootballCardById(cardId) : null;
+    if (!card) return false;
+
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 1 || n > 99) {
+      setMessage("No punggung harus berupa angka 1 sampai 99.");
+      return false;
+    }
+
+    const current = slotNumberMap[slotId];
+    if (n === current) {
+      setMessage(`${card.name} sudah memakai nomor ${n}.`);
+      return false;
+    }
+
+    const next = { ...jerseyNumbers, [cardId]: n };
+
+    // Kalau nomor itu dipakai pemain lain di squad, nomornya ditukar.
+    const otherSlot = Object.keys(slotNumberMap).find(
+      (sid) => sid !== slotId && slotNumberMap[sid] === n
+    );
+    const otherCard = otherSlot ? getFootballCardById(squad[otherSlot]) : null;
+    if (otherSlot && otherCard) {
+      next[squad[otherSlot]] = current;
+    }
+
+    setJerseyNumbers(next);
+    saveData(coins, collection, squad, formation, dailyClaimDate, history, teamName, next);
+
+    setMessage(
+      otherCard
+        ? `${card.name} sekarang nomor ${n}. Nomor ${current} diberikan ke ${otherCard.name} (ditukar).`
+        : `${card.name} sekarang memakai nomor punggung ${n}.`
+    );
+    return true;
+  }
+
   function clearSquad() {
     setSquad({});
     setSelectedSlot(null);
@@ -1751,6 +1879,13 @@ export default function FootballGame({ backToGameHub }) {
   function addFromCollection(cardId) {
     const card = getFootballCardById(cardId);
     if (!card) return;
+
+    if (findSameNameInSquad(squad, card)) {
+      setMessage(
+        `${card.name} sudah ada di squad, jadi pemain dengan nama yang sama tidak bisa dimasukkan lagi.`
+      );
+      return;
+    }
 
     const availableSlot = FORMATIONS[formation].find(
       (slot) =>
@@ -1810,6 +1945,10 @@ export default function FootballGame({ backToGameHub }) {
     if (!slot || !card) return;
     if (!isCompatiblePosition(card, slot.label)) {
       setMessage(`${card.name} tidak cocok untuk posisi ${slot.label}.`);
+      return;
+    }
+    if (findSameNameInSquad(squad, card, slotId)) {
+      setMessage(`${card.name} sudah ada di squad, pemain dengan nama sama tidak bisa dimasukkan lagi.`);
       return;
     }
     const used = Object.entries(squad).filter(([sid, id]) => sid !== slotId && id === cardId).length;
@@ -2051,6 +2190,8 @@ export default function FootballGame({ backToGameHub }) {
             clearSquad={clearSquad}
             selectableCards={selectableCards}
             putPlayerIntoSlot={putPlayerIntoSlot}
+            slotNumbers={slotNumberMap}
+            onChangeNumber={changeJerseyNumber}
             teamOverall={teamOverall}
             teamStrength={teamStrength}
             playMatch={playMatch}
@@ -2075,6 +2216,7 @@ export default function FootballGame({ backToGameHub }) {
             onSub={substituteSlot}
             teamName={teamName}
             suspended={suspended}
+            slotNumbers={slotNumberMap}
           />
         )}
 
@@ -2331,6 +2473,8 @@ function SquadBuilder({
   clearSquad,
   selectableCards,
   putPlayerIntoSlot,
+  slotNumbers = {},
+  onChangeNumber,
   teamOverall,
   teamStrength,
   playMatch,
@@ -2550,6 +2694,7 @@ function SquadBuilder({
                 <PitchPlayer
                   card={card}
                   label={slot.label}
+                  number={slotNumbers[slot.id]}
                   active={active}
                   onClick={() => setSelectedSlot(slot.id)}
                 />
@@ -2612,6 +2757,15 @@ function SquadBuilder({
               Tutup
             </button>
           </div>
+
+          {squad[selectedSlot] && onChangeNumber && (
+            <JerseyEditor
+              slotId={selectedSlot}
+              current={slotNumbers[selectedSlot]}
+              playerName={getFootballCardById(squad[selectedSlot])?.name || "Pemain"}
+              onSave={onChangeNumber}
+            />
+          )}
 
           {squad[selectedSlot] && (
             <button
@@ -2788,7 +2942,7 @@ function StatBox({ label, value }) {
   );
 }
 
-function PitchPlayer({ card, label, active, onClick }) {
+function PitchPlayer({ card, label, number, active, onClick }) {
   if (!card) {
     return (
       <button
@@ -2886,9 +3040,66 @@ function PitchPlayer({ card, label, active, onClick }) {
           marginTop: 2,
         }}
       >
-        {card.position}
+        {number ? `#${number} · ` : ""}{card.position}
       </div>
     </button>
+  );
+}
+
+// Input ganti nomor punggung untuk pemain di slot yang sedang dipilih
+function JerseyEditor({ slotId, current, playerName, onSave }) {
+  const [val, setVal] = useState(String(current || ""));
+
+  useEffect(() => {
+    setVal(String(current || ""));
+  }, [current, slotId]);
+
+  const submit = () => onSave(slotId, val);
+
+  return (
+    <div
+      style={{
+        marginBottom: 16,
+        padding: 12,
+        borderRadius: 12,
+        background: PANEL_SOFT,
+        border: "1px solid rgba(245,239,224,0.12)",
+      }}
+    >
+      <div style={{ color: GOLD, fontSize: 12, fontWeight: 900, letterSpacing: 2 }}>
+        NO. PUNGGUNG
+      </div>
+      <div style={{ fontSize: 13, opacity: 0.75, margin: "4px 0 10px" }}>
+        {playerName} saat ini nomor <b>{current}</b>. Kalau nomornya sudah dipakai
+        pemain lain, nomornya saling ditukar.
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="number"
+          min={1}
+          max={99}
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          style={{
+            width: 90,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: `1px solid ${GOLD}`,
+            background: BG,
+            color: CREAM,
+            fontWeight: 900,
+            fontSize: 16,
+            textAlign: "center",
+          }}
+        />
+        <button onClick={submit} style={buttonStyle()}>
+          Simpan Nomor
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -2960,7 +3171,7 @@ const wpick = (w) => {
   return Object.keys(w)[0];
 };
 const tname = (s, t) => (s.tn && s.tn[t]) || (t ? "Away" : "Home");
-const pname = (p) => p.name || `#${(p.i % 11) + 1}`;
+const pname = (p) => p.name || `#${p.num || ((p.i % 11) + 1)}`;
 const LBL = { throw: "LEMPARAN KE DALAM", corner: "TENDANGAN POJOK", goalkick: "TENDANGAN GAWANG", freekick: "TENDANGAN BEBAS", penalty: "PENALTI", goal: "GOL!" };
 
 function note(s, txt) {
@@ -2968,12 +3179,13 @@ function note(s, txt) {
   if (s.log.length > 40) s.log.shift();
 }
 
-function mkPlayers(team, base, names = []) {
+function mkPlayers(team, base, names = [], nums = []) {
   return base.map(([fx, fy], i) => {
     const x = (team ? 1 - fx : fx) * W, y = (team ? 1 - fy : fy) * H;
     return {
       team, i: i + team * 11, x, y, hx: x, hy: y, vx: 0, vy: 0,
       name: names[i] || "",
+      num: nums[i] || null,
       role: i === 0 ? "gk" : fx < .3 ? "def" : fx < .55 ? "mid" : "fwd",
       yc: 0, off: false, gone: false, down: 0, dv: null, dvT: 0, dvA: 0
     };
@@ -2982,9 +3194,9 @@ function mkPlayers(team, base, names = []) {
 
 const fromSlots = (slots) => slots ? slots.map((s) => [clamp((100 - s.y) / 100, .06, .85), clamp(s.x / 100, .1, .9)]) : DEF;
 
-function initSim(slotsH, slotsA, T, gg, namesH = [], namesA = []) {
+function initSim(slotsH, slotsA, T, gg, namesH = [], namesA = [], numsH = [], numsA = []) {
   const s = {
-    ps: [...mkPlayers(0, fromSlots(slotsH), namesH), ...mkPlayers(1, fromSlots(slotsA), namesA)],
+    ps: [...mkPlayers(0, fromSlots(slotsH), namesH, numsH), ...mkPlayers(1, fromSlots(slotsA), namesA, numsA)],
     ball: { x: W / 2, y: H / 2, vx: 0, vy: 0, z: 0 }, owner: null, mode: "sp", poss: 0, last: 0, score: [0, 0],
     min: 0, t: 0, pause: .6, decide: 1, flight: 0, ft0: 1, zpk: 0, trail: [], flash: null, ht: false, done: false, T, gg,
     log: [], sp: null, rc: [0, 0], reds: [], cardShow: null, net: null, idle: 0, tn: null,
@@ -3539,7 +3751,7 @@ function draw(c, s, cols) {
     } else {
       c.beginPath(); c.arc(p.x, p.y, 12, 0, 7); c.fillStyle = col; c.fill();
       c.lineWidth = own ? 3 : 1.5; c.strokeStyle = own ? GOLD : "#fff"; c.stroke();
-      c.fillStyle = "#fff"; c.font = "bold 10px Arial"; c.fillText(String((p.i % 11) + 1), p.x, p.y + .5);
+      c.fillStyle = "#fff"; c.font = "bold 10px Arial"; c.fillText(String(p.num || ((p.i % 11) + 1)), p.x, p.y + .5);
     }
     if (p.yc && !p.off) { c.fillStyle = "#f4d21f"; c.fillRect(p.x + 8, p.y - 17, 6, 9); }
     if (p.name) {
@@ -3582,7 +3794,7 @@ function draw(c, s, cols) {
 
 const tac = (t, o) => ({ atk: o + (t === "attack" ? 4 : t === "defense" ? -3 : 0), def: o + (t === "defense" ? 4 : t === "attack" ? -3 : 0) });
 
-function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], playerNamesAway = [], goldenGoal, onFinish, publish, halftimeBreak, mySide = 0, renderHalftime, onRed }) {
+function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], playerNamesAway = [], playerNumbersHome = [], playerNumbersAway = [], goldenGoal, onFinish, publish, halftimeBreak, mySide = 0, renderHalftime, onRed }) {
   const cv = useRef(null), sim = useRef(null), spd = useRef(1), fin = useRef(onFinish), redCb = useRef(onRed);
   const [speed, setSpeed] = useState(1);
   const [ui, setUi] = useState({ a: 0, b: 0, m: 0, done: false, h: false, log: [], st: null });
@@ -3596,7 +3808,9 @@ function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], p
       [tac(home.tactic, home.ovr), tac(away.tactic, away.ovr)],
       !!goldenGoal,
       playerNamesHome,
-      playerNamesAway
+      playerNamesAway,
+      playerNumbersHome,
+      playerNumbersAway
     ));
     s.hb = !!halftimeBreak;
     s.tn = [home.name, away.name];
@@ -3636,13 +3850,13 @@ function MatchCanvas({ home, away, slotsHome, slotsAway, playerNamesHome = [], p
     const s = sim.current;
     if (!s || !s.hold || publish || mySide) return;
     s.T[0] = tac(tacHt, home.ovr);
-    if (slotsHome) mkPlayers(0, fromSlots(slotsHome), playerNamesHome).forEach((n, i) => {
+    if (slotsHome) mkPlayers(0, fromSlots(slotsHome), playerNamesHome, playerNumbersHome).forEach((n, i) => {
       const q = s.ps[i];
       if (q.off || q.gone) return;
-      q.hx = q.x = n.hx; q.hy = q.y = n.hy; q.role = n.role; q.name = n.name;
+      q.hx = q.x = n.hx; q.hy = q.y = n.hy; q.role = n.role; q.name = n.name; q.num = n.num;
     });
     // eslint-disable-next-line
-  }, [home.ovr, slotsHome, playerNamesHome]);
+  }, [home.ovr, slotsHome, playerNamesHome, playerNumbersHome]);
 
   const skip = () => { const s = sim.current; let g = 0; while (!s.done && g++ < 9000) step(s, .05); };
 
@@ -4128,7 +4342,7 @@ function PvPPanel(props) {
 
 /* ================= TAB MATCH BARU ================= */
 
-function QuickMatchPanel({ teamOverall, slots, ready, onRecord, formations = [], formation, onFormation, squad = {}, collection = [], counts = {}, getCard, canPlay, onSub, teamName = "RGame FC", suspended = {} }) {
+function QuickMatchPanel({ teamOverall, slots, ready, onRecord, formations = [], formation, onFormation, squad = {}, collection = [], counts = {}, getCard, canPlay, onSub, teamName = "RGame FC", suspended = {}, slotNumbers = {} }) {
   const [opp, setOpp] = useState(null), [n, setN] = useState(0), [tacV, setTacV] = useState("balanced"), [res, setRes] = useState(null);
   const [redIdx, setRedIdx] = useState([]), [redIds, setRedIds] = useState([]);
   const sqRef = useRef(squad), redsRef = useRef([]);
@@ -4140,6 +4354,10 @@ function QuickMatchPanel({ teamOverall, slots, ready, onRecord, formations = [],
       return card?.name || s?.name || s?.playerName || "";
     })
   ), [slots, squad, getCard]);
+
+  const playerNumbers = useMemo(() => (
+    (slots || []).map((s) => (s?.id && squad?.[s.id] ? slotNumbers?.[s.id] || null : null))
+  ), [slots, squad, slotNumbers]);
 
   const blocked = (slots || []).filter((sl) => squad?.[sl.id] && suspended?.[squad[sl.id]]);
   const suspNames = Object.keys(suspended || {}).map((id) => getCard?.(id)?.name).filter(Boolean);
@@ -4202,6 +4420,7 @@ function QuickMatchPanel({ teamOverall, slots, ready, onRecord, formations = [],
         away={opp}
         slotsHome={slots}
         playerNamesHome={playerNames}
+        playerNumbersHome={playerNumbers}
         halftimeBreak
         onRed={handleRed}
         onFinish={finish}
@@ -4230,6 +4449,7 @@ function HalftimeTools({ slots, formations, formation, onFormation, squad, colle
   const slot = slots.find((s) => s.id === sel);
   const cands = slot ? [...new Set(collection)].map(getCard).filter((c) => c && canPlay(c, slot.label) &&
     !suspended[c.id] && !redIds.includes(c.id) &&
+    !findSameNameInSquad(squad, c, sel) &&
     Object.entries(squad).filter(([id, cid]) => id !== sel && cid === c.id).length < (counts[c.id] || 0)) : [];
   const lockForm = offIdx.length > 0;
 
