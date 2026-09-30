@@ -106,6 +106,7 @@ function createCard(player) {
     era: player.era,
     rarity: player.rarity,
     overall: player.overall,
+    ...(player.photo ? { photo: player.photo } : {}),
   };
 
   // ===================================================

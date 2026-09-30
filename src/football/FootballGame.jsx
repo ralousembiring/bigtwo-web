@@ -222,7 +222,7 @@ const REAL_PLAYER_POOL = [
   {"id": "real_201", "name": "Fabio Cannavaro", "position": "CB", "overall": 95, "pace": 68, "shooting": 72, "passing": 64, "dribbling": 73, "defending": 66, "physical": 73, "awareness": 74, "catching": 74, "reflexes": 74, "diving": 74, "jumping": 74, "rarity": "Legendary"},
   {"id": "real_202", "name": "Giorgio Chiellini", "position": "CB", "overall": 91, "pace": 82, "shooting": 84, "passing": 86, "dribbling": 88, "defending": 90, "physical": 77, "awareness": 91, "catching": 91, "reflexes": 91, "diving": 91, "jumping": 91, "rarity": "Epic"},
   {"id": "real_203", "name": "Leonardo Bonucci", "position": "CB", "overall": 86, "pace": 86, "shooting": 74, "passing": 86, "dribbling": 81, "defending": 74, "physical": 74, "awareness": 86, "catching": 86, "reflexes": 86, "diving": 86, "jumping": 86, "rarity": "Rare"},
-  {"id": "real_204", "name": "Paolo Maldini", "position": "CB", "overall": 98, "pace": 78, "shooting": 78, "passing": 74, "dribbling": 74, "defending": 76, "physical": 71, "awareness": 81, "catching": 81, "reflexes": 81, "diving": 81, "jumping": 81, "rarity": "Legendary"},
+  {"id": "real_204", "name": "Paolo Maldini", "position": "CB", "overall": 98, "pace": 78, "shooting": 78, "passing": 74, "dribbling": 74, "defending": 76, "physical": 71, "awareness": 81, "catching": 81, "reflexes": 81, "diving": 81, "jumping": 81, "rarity": "Legendary","photo": "/players/maldini.png"},
   {"id": "real_205", "name": "Alessandro Nesta", "position": "CB", "overall": 96, "pace": 70, "shooting": 68, "passing": 74, "dribbling": 67, "defending": 60, "physical": 68, "awareness": 76, "catching": 76, "reflexes": 76, "diving": 76, "jumping": 76, "rarity": "Legendary"},
   {"id": "real_206", "name": "Franco Baresi", "position": "CB", "overall": 98, "pace": 84, "shooting": 80, "passing": 84, "dribbling": 82, "defending": 84, "physical": 87, "awareness": 93, "catching": 93, "reflexes": 93, "diving": 93, "jumping": 93, "rarity": "Legendary"},
   {"id": "real_207", "name": "Lilian Thuram", "position": "CB", "overall": 94, "pace": 88, "shooting": 84, "passing": 84, "dribbling": 88, "defending": 86, "physical": 84, "awareness": 88, "catching": 88, "reflexes": 88, "diving": 88, "jumping": 88, "rarity": "Legendary"},
@@ -355,7 +355,7 @@ const REAL_PLAYER_POOL = [
   {"id": "real_334", "name": "Paul Gascoigne", "position": "CM", "overall": 91, "pace": 82, "shooting": 82, "passing": 86, "dribbling": 84, "defending": 78, "physical": 86, "awareness": 91, "catching": 91, "reflexes": 91, "diving": 91, "jumping": 91, "rarity": "Epic"},
   {"id": "real_335", "name": "Roberto Baggio", "position": "CM", "overall": 86, "pace": 86, "shooting": 86, "passing": 86, "dribbling": 77, "defending": 80, "physical": 83, "awareness": 86, "catching": 86, "reflexes": 86, "diving": 86, "jumping": 86, "rarity": "Rare"},
   {"id": "real_336", "name": "Juan Sebastián Verón", "position": "CM", "overall": 81, "pace": 78, "shooting": 76, "passing": 74, "dribbling": 70, "defending": 64, "physical": 80, "awareness": 81, "catching": 81, "reflexes": 81, "diving": 81, "jumping": 81, "rarity": "Rare"},
-  {"id": "real_337", "name": "Lionel Messi", "position": "ST", "overall": 99, "pace": 84, "shooting": 80, "passing": 88, "dribbling": 90, "defending": 80, "physical": 76, "awareness": 90, "catching": 90, "reflexes": 90, "diving": 90, "jumping": 90, "rarity": "Legendary"},
+  {"id": "real_337", "name": "Lionel Messi", "position": "ST", "overall": 99, "pace": 85, "shooting": 99, "passing": 89, "dribbling": 99, "defending": 54, "physical": 76, "awareness": 54, "catching": 54, "reflexes": 54, "diving": 54, "jumping": 70, "rarity": "Legendary", "photo": "/players/messi.png"},
   {"id": "real_338", "name": "Kylian Mbappé", "position": "ST", "overall": 90, "pace": 81, "shooting": 89, "passing": 81, "dribbling": 88, "defending": 87, "physical": 78, "awareness": 90, "catching": 90, "reflexes": 90, "diving": 90, "jumping": 90, "rarity": "Epic"},
   {"id": "real_339", "name": "Erling Haaland", "position": "ST", "overall": 90, "pace": 90, "shooting": 84, "passing": 86, "dribbling": 86, "defending": 76, "physical": 80, "awareness": 90, "catching": 90, "reflexes": 90, "diving": 90, "jumping": 90, "rarity": "Epic"},
   {"id": "real_340", "name": "Vinícius Júnior", "position": "ST", "overall": 83, "pace": 80, "shooting": 72, "passing": 72, "dribbling": 77, "defending": 76, "physical": 75, "awareness": 83, "catching": 83, "reflexes": 83, "diving": 83, "jumping": 83, "rarity": "Rare"},
@@ -483,7 +483,7 @@ const REAL_PLAYER_POOL = [
   {"id": "real_462", "name": "Charles De Ketelaere", "position": "ST", "overall": 89, "pace": 80, "shooting": 84, "passing": 88, "dribbling": 86, "defending": 72, "physical": 85, "awareness": 89, "catching": 89, "reflexes": 89, "diving": 89, "jumping": 89, "rarity": "Epic"},
   {"id": "real_463", "name": "Arjen Robben", "position": "ST", "overall": 84, "pace": 84, "shooting": 74, "passing": 76, "dribbling": 79, "defending": 74, "physical": 82, "awareness": 84, "catching": 84, "reflexes": 84, "diving": 84, "jumping": 84, "rarity": "Rare"},
   {"id": "real_464", "name": "Robin van Persie", "position": "ST", "overall": 79, "pace": 76, "shooting": 78, "passing": 76, "dribbling": 72, "defending": 76, "physical": 79, "awareness": 79, "catching": 79, "reflexes": 79, "diving": 79, "jumping": 79, "rarity": "Rare"},
-  {"id": "real_465", "name": "Cristiano Ronaldo", "position": "ST", "overall": 99, "pace": 84, "shooting": 84, "passing": 80, "dribbling": 81, "defending": 76, "physical": 77, "awareness": 90, "catching": 90, "reflexes": 90, "diving": 90, "jumping": 90, "rarity": "Legendary"},
+  {"id": "real_465", "name": "Cristiano Ronaldo", "position": "ST", "overall": 99, "pace": 94, "shooting": 95, "passing": 84, "dribbling": 90, "defending": 60, "physical": 85, "awareness": 54, "catching": 54, "reflexes": 54, "diving": 54, "jumping": 88, "rarity": "Legendary", "photo": "/players/cristiano.png"},
   {"id": "real_466", "name": "Neymar", "position": "LW", "overall": 91, "pace": 82, "shooting": 80, "passing": 86, "dribbling": 80, "defending": 84, "physical": 80, "awareness": 91, "catching": 91, "reflexes": 91, "diving": 91, "jumping": 91, "rarity": "Epic"},
   {"id": "real_467", "name": "Karim Benzema", "position": "ST", "overall": 86, "pace": 86, "shooting": 84, "passing": 86, "dribbling": 86, "defending": 86, "physical": 77, "awareness": 86, "catching": 86, "reflexes": 86, "diving": 86, "jumping": 86, "rarity": "Rare"},
   {"id": "real_468", "name": "Sergio Agüero", "position": "ST", "overall": 81, "pace": 78, "shooting": 74, "passing": 74, "dribbling": 79, "defending": 70, "physical": 74, "awareness": 81, "catching": 81, "reflexes": 81, "diving": 81, "jumping": 81, "rarity": "Rare"},
@@ -3015,9 +3015,18 @@ function PitchPlayer({ card, label, number, active, onClick }) {
           alignItems: "center",
           justifyContent: "center",
           fontSize: 27,
+          overflow: "hidden",
         }}
       >
-        ⚽
+        {card.photo ? (
+          <img
+            src={card.photo}
+            alt={card.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+          />
+        ) : (
+          "⚽"
+        )}
       </div>
 
       <div

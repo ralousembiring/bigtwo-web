@@ -101,6 +101,7 @@ export function PlayerCard({ card, revealed = true }) {
               left: 18,
               top: 40,
               textAlign: "center",
+              zIndex: 2,
             }}
           >
             <div
@@ -139,9 +140,23 @@ export function PlayerCard({ card, revealed = true }) {
               alignItems: "center",
               justifyContent: "center",
               fontSize: 64,
+              overflow: "hidden",
             }}
           >
-            ⚽
+            {card.photo ? (
+              <img
+                src={card.photo}
+                alt={card.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center top",
+                }}
+              />
+            ) : (
+              "⚽"
+            )}
           </div>
 
           {/* NAME */}
