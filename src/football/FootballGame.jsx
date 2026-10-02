@@ -13,13 +13,17 @@ const SOFT = PANEL_SOFT;
 const SINGLE_COST = 20;
 const TEN_COST = 200;
 const INITIAL_COINS = 0;
-const FIRST_DAY_COINS = 400;
+const FIRST_DAY_COINS = 600;
 const DAILY_COINS = 200;
 const MAX_SQUAD = 11;
 
 const REAL_PLAYER_POOL = PLAYERS;
 const REAL_PLAYER_MAP = Object.fromEntries(REAL_PLAYER_POOL.map((p) => [p.id, p]));
-function getFootballCardById(id) { return REAL_PLAYER_MAP[id] || null; }
+
+function getFootballCardById(id) {
+  return REAL_PLAYER_MAP[id] || null;
+}
+
 const getCardById = getFootballCardById;
 
 const FORMATIONS = {
@@ -663,7 +667,7 @@ export default function FootballGame({ backToGameHub }) {
 
     setMessage(
       isFirstDay
-        ? "+400 🪙 First Day Bonus berhasil diambil!"
+        ? "+600 🪙 First Day Bonus berhasil diambil!"
         : "+200 🪙 bonus harian berhasil diambil!"
     );
   }
@@ -1114,7 +1118,7 @@ export default function FootballGame({ backToGameHub }) {
                 ? "✓ Claimed Today"
                 : dailyClaimDate
                 ? "🎁 +200 Daily"
-                : "🎁 +400 First Day"}
+                : "🎁 +600 First Day"}
             </button>
 
             <button onClick={backToGameHub} style={buttonStyle()}>
@@ -2283,8 +2287,35 @@ const segD = (q, a, b) => {
   const u = clamp(((q.x - a.x) * dx + (q.y - a.y) * dy) / l, 0, 1);
   return Math.hypot(q.x - (a.x + u * dx), q.y - (a.y + u * dy));
 };
-const A = (s, t) => s.T[t].atk - 7 * s.rc[t];
-const D = (s, t) => s.T[t].def - 7 * s.rc[t];
+const stat = (p, key, fallback = 70) => {
+  const v = Number(p?.stats?.[key] ?? p?.[key]);
+  return Number.isFinite(v) ? clamp(v, 1, 99) : fallback;
+};
+
+const playerAttack = (p) => {
+  if (!p) return 70;
+  if (p.role === "gk") return (stat(p, "passing") * .35 + stat(p, "physical") * .2 + stat(p, "awareness") * .15 + stat(p, "reflexes") * .3);
+  if (p.role === "def") return stat(p, "passing") * .24 + stat(p, "dribbling") * .18 + stat(p, "pace") * .16 + stat(p, "physical") * .14 + stat(p, "shooting") * .28;
+  if (p.role === "mid") return stat(p, "passing") * .30 + stat(p, "dribbling") * .24 + stat(p, "shooting") * .18 + stat(p, "pace") * .12 + stat(p, "physical") * .16;
+  return stat(p, "shooting") * .34 + stat(p, "dribbling") * .25 + stat(p, "pace") * .18 + stat(p, "passing") * .13 + stat(p, "physical") * .10;
+};
+
+const playerDefense = (p) => {
+  if (!p) return 70;
+  if (p.role === "gk") return stat(p, "awareness") * .22 + stat(p, "catching") * .22 + stat(p, "reflexes") * .34 + stat(p, "diving") * .22;
+  if (p.role === "def") return stat(p, "defending") * .48 + stat(p, "physical") * .22 + stat(p, "pace") * .15 + stat(p, "passing") * .15;
+  if (p.role === "mid") return stat(p, "defending") * .30 + stat(p, "physical") * .22 + stat(p, "pace") * .16 + stat(p, "passing") * .18 + stat(p, "dribbling") * .14;
+  return stat(p, "defending") * .20 + stat(p, "physical") * .24 + stat(p, "pace") * .20 + stat(p, "dribbling") * .20 + stat(p, "passing") * .16;
+};
+
+const avgStat = (s, t, fn) => {
+  const ps = act(s, t).filter((p) => p.role !== "gk");
+  if (!ps.length) return 70;
+  return ps.reduce((sum, p) => sum + fn(p), 0) / ps.length;
+};
+
+const A = (s, t) => (s.T[t].atk - 7 * s.rc[t]) * .58 + avgStat(s, t, playerAttack) * .42;
+const D = (s, t) => (s.T[t].def - 7 * s.rc[t]) * .58 + avgStat(s, t, playerDefense) * .42;
 const act = (s, t) => s.ps.filter((p) => p.team === t && !p.off);
 const outf = (s, t) => act(s, t).filter((p) => p.role !== "gk");
 const gkOf = (s, t) => act(s, t).find((p) => p.role === "gk");
@@ -2304,14 +2335,30 @@ function note(s, txt) {
   if (s.log.length > 40) s.log.shift();
 }
 
-function mkPlayers(team, base, names = [], nums = []) {
+function findPlayerCardByName(name) {
+  const target = String(name || "").trim().toLowerCase();
+  if (!target) return null;
+  return REAL_PLAYER_POOL.find((p) => String(p.name || "").trim().toLowerCase() === target) || null;
+}
+
+function cardStats(card, role) {
+  if (card) {
+    return { ...card };
+  }
+  if (role === "gk") return { overall: 70, awareness: 70, catching: 70, reflexes: 70, diving: 70, jumping: 70, physical: 70, passing: 70 };
+  return { overall: 70, pace: 70, shooting: 70, passing: 70, dribbling: 70, defending: 70, physical: 70 };
+}
+
+function mkPlayers(team, base, names = [], nums = [], cards = []) {
   return base.map(([fx, fy], i) => {
     const x = (team ? 1 - fx : fx) * W, y = (team ? 1 - fy : fy) * H;
+    const role = i === 0 ? "gk" : fx < .3 ? "def" : fx < .55 ? "mid" : "fwd";
+    const card = cards[i] || findPlayerCardByName(names[i]);
     return {
       team, i: i + team * 11, x, y, hx: x, hy: y, vx: 0, vy: 0,
-      name: names[i] || "",
+      name: names[i] || card?.name || "",
       num: nums[i] || null,
-      role: i === 0 ? "gk" : fx < .3 ? "def" : fx < .55 ? "mid" : "fwd",
+      role, cardId: card?.id || null, stats: cardStats(card, role),
       yc: 0, off: false, gone: false, down: 0, dv: null, dvT: 0, dvA: 0
     };
   });
@@ -2355,6 +2402,8 @@ function applySimSubstitution(s, item) {
   q.name = card.name || q.name || "";
   q.num = item.num || q.num || null;
   q.role = item.role || q.role;
+  q.cardId = card.id || q.cardId || null;
+  q.stats = cardStats(card, q.role);
   q.off = false; q.gone = false; q.down = 0;
   q.dv = null; q.dvT = 0; q.dvA = 0;
   q.hx = q.x; q.hy = q.y;
@@ -2441,7 +2490,7 @@ function pickPass(s, o) {
     if (o.role === "gk" && p.role === "fwd") continue;      // kiper tidak langsung ke striker
     let open = 999, lane = 999;
     for (const q of opps) { open = Math.min(open, dsc(q, p)); lane = Math.min(lane, segD(q, o, p)); }
-    let sc = ((p.x - o.x) * dir) * .011 + Math.min(open, 90) * .022 + Math.min(lane, 60) * .03 - d * .0045 + rnd() * 1.5;
+    let sc = ((p.x - o.x) * dir) * .011 + Math.min(open, 90) * .022 + Math.min(lane, 60) * .03 - d * .0045 + (stat(o, "passing") - 70) * .045 + (stat(p, "dribbling") - 70) * .012 + rnd() * 1.5;
     if (o.role === "def" && p.role === "fwd") sc -= 1.8;   // bek build-up dulu, bukan lambung ke depan
     if (o.role === "mid" && p.role === "def") sc += .3;    // sesekali umpan balik/samping
     if (sc > bs) { bs = sc; best = p; }
@@ -2483,7 +2532,8 @@ function doPass(s, o) {
   if (!c) { s.decide = .5; return; }
   const d = dsc(o, c);
   let tx = clamp(c.x + c.vx * .45, GL0 + 8, GL1 - 8), ty = clamp(c.y + c.vy * .45, TL0 + 8, TL1 - 8);
-  const err = clamp(.045 + d / 2600 - (A(s, t) - D(s, 1 - t)) / 1500, .02, .16);
+  const passQuality = stat(o, "passing");
+  const err = clamp(.075 + d / 2600 - (passQuality - 70) / 850 - (A(s, t) - D(s, 1 - t)) / 1700, .015, .22);
   let mode = "pass";
   s.ball.x = o.x; s.ball.y = o.y;
   if (rnd() < err) {
@@ -2521,7 +2571,11 @@ function decide(s, o) {
 function shoot(s, o, opt = {}) {
   const t = o.team, opp = 1 - t, gx = gxOf(t), outw = t ? -1 : 1;
   const diff = A(s, t) - D(s, opp);
-  const w = opt.w || { goal: clamp(.18 + diff / 240, .05, .38) * (opt.long ? .55 : 1), save: .36, block: .13, miss: .34 };
+  const shooter = stat(o, "shooting");
+  const keeper = stat(gkOf(s, opp), "reflexes", 72);
+  const shooterBoost = (shooter - 70) / 210;
+  const keeperPenalty = (keeper - 70) / 260;
+  const w = opt.w || { goal: clamp(.18 + diff / 240 + shooterBoost - keeperPenalty, .025, .48) * (opt.long ? .55 : 1), save: clamp(.36 + keeperPenalty, .18, .55), block: .13, miss: clamp(.34 - shooterBoost, .12, .45) };
   const out = wpick(w);
   s.out = out; s.st = t; s.shooter = o.i; s.over = false; s.blk = -1;
   const gk = gkOf(s, opp);
@@ -2619,7 +2673,7 @@ function runSP(s) {
     launch(s, t, tx, ty, 245, "cross", 58);
   } else if (k === "freekick") {
     if (sp.shot) {
-      const dg = Math.abs(sp.x - gx), pg = clamp(.075 + (A(s, t) - D(s, 1 - t)) / 600 - dg / 2600, .03, .18);
+      const dg = Math.abs(sp.x - gx), pg = clamp(.075 + (A(s, t) - D(s, 1 - t)) / 600 + (stat(tk, "shooting") - 70) / 900 - dg / 2600, .02, .24);
       shoot(s, tk, { w: { goal: pg, wall: .22, save: .27, miss: .38 }, spd: 350, zpk: 24 });
     } else { give(s, tk); s.decide = .3; }
   } else if (k === "penalty") {
@@ -2678,7 +2732,9 @@ function resolveShot(s) {
 function resolveCross(s) {
   const t = s.poss, opp = 1 - t, b = s.ball, isC = s.xk === "corner", gx = gxOf(t), outw = t ? -1 : 1;
   const atk = outf(s, t).sort(byDist(b))[0], dfd = outf(s, opp).sort(byDist(b))[0], gk = gkOf(s, opp);
-  const pg = clamp((isC ? .10 : .07) + (A(s, t) - D(s, opp)) / 380, .03, .22);
+  const headerPower = atk ? (stat(atk, "physical") * .45 + stat(atk, "shooting") * .35 + stat(atk, "dribbling") * .20) : 70;
+  const defenderPower = dfd ? playerDefense(dfd) : 70;
+  const pg = clamp((isC ? .10 : .07) + (A(s, t) - D(s, opp)) / 380 + (headerPower - defenderPower) / 520, .02, .28);
   const w = { goal: pg, save: .17, wide: .13, clear: .34, claim: .22 };
   if (!isC) w.out = .12;
   const r = wpick(w);
@@ -2715,7 +2771,7 @@ function land(s) {
     let r = ps[s.target];
     if (!r || r.off || dsc(r, s.lt) > 45) r = outf(s, s.poss).sort(byDist(s.lt))[0];
     const opp = outf(s, 1 - r.team).sort(byDist(s.lt))[0];
-    const cut = opp && dsc(opp, s.lt) < 45 && rnd() < clamp(.2 - (A(s, r.team) - D(s, 1 - r.team)) / 400, .05, .35);
+    const cut = opp && dsc(opp, s.lt) < 45 && rnd() < clamp(.28 - (stat(r, "passing") - playerDefense(opp)) / 420, .04, .48);
     give(s, cut ? opp : r);
   } else if (m === "loose") {
     const c = act(s, 0).concat(act(s, 1)).filter((p) => p.role !== "gk" || dsc(p, s.lt) < 45).sort(byDist(s.lt))[0];
@@ -2827,7 +2883,7 @@ function step(s, dt) {
     b.x += (o.x + hx * 9 - b.x) * kb; b.y += (o.y + hy * 9 - b.y) * kb;
     for (const q of ps) {
       if (q.team !== o.team && !q.off && !q.gone && q.role !== "gk" && q.down <= 0 && dsc(q, o) < 27 &&
-        rnd() < dt * clamp(.42 + (D(s, q.team) - A(s, o.team)) / 110, .12, 1)) {
+        rnd() < dt * clamp(.42 + (playerDefense(q) - playerAttack(o)) / 105, .08, 1)) {
         const inBox = Math.abs(o.x - gxOf(o.team)) < PBD - 4 && Math.abs(o.y - H / 2) < PBH - 6;
         if (rnd() < (inBox ? .09 : .26)) foul(s, o, q); else give(s, q);
         return;
@@ -2877,7 +2933,8 @@ function step(s, dt) {
     if (p.dvT > 0) p.dvT -= dt;
     if (p.dv) {                                           // kiper melompat
       const dx = p.dv.x - p.x, dy = p.dv.y - p.y, d = Math.hypot(dx, dy);
-      const spd = Math.min(300, d / Math.max(.1, s.flight * .9)), mv = Math.min(d, spd * dt);
+      const reflex = stat(p, "reflexes", 70);
+      const spd = Math.min(300 + (reflex - 70) * 2.2, d / Math.max(.1, s.flight * (.95 - (reflex - 70) / 500))), mv = Math.min(d, spd * dt);
       if (d > .5) { p.x += dx / d * mv; p.y += dy / d * mv; p.vx = dx / d * spd; p.vy = dy / d * spd; }
       continue;
     }
@@ -2897,7 +2954,9 @@ function step(s, dt) {
       else [tx, ty, sp] = shapeT(s, p, chaseOk, nn, sup);
     }
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
-    const v = sp * (1 + (s.T[p.team].atk - 70) / 400) * Math.min(1, d / 24), k = Math.min(1, dt * 5);
+    const pace = stat(p, "pace", p.role === "gk" ? 55 : 70);
+    const physical = stat(p, "physical", 70);
+    const v = sp * (1 + (pace - 70) / 170 + (physical - 70) / 700) * (1 + (s.T[p.team].atk - 70) / 500) * Math.min(1, d / 24), k = Math.min(1, dt * 5);
     p.vx += ((dx / d) * v - p.vx) * k; p.vy += ((dy / d) * v - p.vy) * k;
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (free) { if (p.y < 2 || p.y > H - 2) { p.gone = true; p.x = -100; p.y = -100; } }
