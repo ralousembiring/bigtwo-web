@@ -34,6 +34,7 @@ export function PlayerCard({ card, revealed = true }) {
     RARITY_STYLE.Standard;
 
   const isGoalkeeper = card.position === "GK";
+  const stats = card.stats || {};
 
   return (
     <div
@@ -203,24 +204,24 @@ export function PlayerCard({ card, revealed = true }) {
             }}
           >
             {isGoalkeeper ? (
-              <>
-                <div>🧠 AWR {card.awareness}</div>
-                <div>🧤 CAT {card.catching}</div>
-                <div>⚡ REF {card.reflexes}</div>
-                <div>🪽 DIV {card.diving}</div>
-                <div>🦘 JMP {card.jumping}</div>
-                <div>💪 PHY {card.physical}</div>
-              </>
-            ) : (
-              <>
-                <div>⚡ PAC {card.pace}</div>
-                <div>🎯 SHO {card.shooting}</div>
-                <div>🎯 PAS {card.passing}</div>
-                <div>💨 DRI {card.dribbling}</div>
-                <div>🛡️ DEF {card.defending}</div>
-                <div>💪 PHY {card.physical}</div>
-              </>
-            )}
+  <>
+    <div>🧠 AWR {stats.awareness}</div>
+    <div>🧤 CAT {stats.catching}</div>
+    <div>⚡ REF {stats.reflexes}</div>
+    <div>🪽 DIV {stats.diving}</div>
+    <div>🦘 JMP {stats.jumping}</div>
+    <div>💪 PHY {stats.physical}</div>
+  </>
+) : (
+  <>
+    <div>⚡ PAC {stats.pace}</div>
+    <div>🎯 SHO {stats.shooting}</div>
+    <div>🎯 PAS {stats.passing}</div>
+    <div>💨 DRI {stats.dribbling}</div>
+    <div>🛡️ DEF {stats.defending}</div>
+    <div>💪 PHY {stats.physical}</div>
+  </>
+)}
           </div>
         </div>
 
