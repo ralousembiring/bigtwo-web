@@ -1374,7 +1374,7 @@ function GachaPanel({
         }}
       >
         <strong style={{ color: GOLD }}>Database:</strong>{" "}
-        1.000 pemain nyata · Rating adalah rating game RGameHub
+        1.000+ pemain nyata · Rating adalah rating game RGameHub
       </div>
 
       {results.length > 0 && (

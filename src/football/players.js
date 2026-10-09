@@ -3526,7 +3526,7 @@ export const PLAYERS = [
   {
     "id": "real_111",
     "name": "Achraf Hakimi",
-    "position": "CB",
+    "position": "RB",
     "overall": 91,
     "pace": 87,
     "shooting": 72,
@@ -3558,7 +3558,7 @@ export const PLAYERS = [
   {
     "id": "real_112",
     "name": "Trent Alexander-Arnold",
-    "position": "CB",
+    "position": "RB",
     "overall": 86,
     "pace": 78,
     "shooting": 73,
@@ -3590,7 +3590,7 @@ export const PLAYERS = [
   {
     "id": "real_113",
     "name": "Reece James",
-    "position": "CB",
+    "position": "RB",
     "overall": 81,
     "pace": 73,
     "shooting": 63,
@@ -3622,7 +3622,7 @@ export const PLAYERS = [
   {
     "id": "real_114",
     "name": "Kyle Walker",
-    "position": "CB",
+    "position": "RB",
     "overall": 76,
     "pace": 73,
     "shooting": 63,
@@ -3654,7 +3654,7 @@ export const PLAYERS = [
   {
     "id": "real_115",
     "name": "Ben White",
-    "position": "CB",
+    "position": "RB",
     "overall": 93,
     "pace": 84,
     "shooting": 71,
@@ -3686,7 +3686,7 @@ export const PLAYERS = [
   {
     "id": "real_116",
     "name": "Luke Shaw",
-    "position": "CB",
+    "position": "LB",
     "overall": 88,
     "pace": 82,
     "shooting": 68,
@@ -3718,7 +3718,7 @@ export const PLAYERS = [
   {
     "id": "real_117",
     "name": "Andy Robertson",
-    "position": "CB",
+    "position": "LB",
     "overall": 83,
     "pace": 78,
     "shooting": 65,
@@ -3750,7 +3750,7 @@ export const PLAYERS = [
   {
     "id": "real_118",
     "name": "Kieran Trippier",
-    "position": "CB",
+    "position": "RB",
     "overall": 78,
     "pace": 73,
     "shooting": 58,
@@ -3782,7 +3782,7 @@ export const PLAYERS = [
   {
     "id": "real_119",
     "name": "Diogo Dalot",
-    "position": "CB",
+    "position": "RB",
     "overall": 73,
     "pace": 69,
     "shooting": 55,
@@ -3814,7 +3814,7 @@ export const PLAYERS = [
   {
     "id": "real_120",
     "name": "Nuno Mendes",
-    "position": "CB",
+    "position": "LB",
     "overall": 90,
     "pace": 88,
     "shooting": 77,
@@ -3846,7 +3846,7 @@ export const PLAYERS = [
   {
     "id": "real_121",
     "name": "Theo Hernández",
-    "position": "CB",
+    "position": "LB",
     "overall": 85,
     "pace": 86,
     "shooting": 67,
@@ -3910,7 +3910,7 @@ export const PLAYERS = [
   {
     "id": "real_123",
     "name": "Ferland Mendy",
-    "position": "CB",
+    "position": "LB",
     "overall": 75,
     "pace": 66,
     "shooting": 60,
@@ -3942,7 +3942,7 @@ export const PLAYERS = [
   {
     "id": "real_124",
     "name": "Davies Alphonso",
-    "position": "CB",
+    "position": "LB",
     "overall": 92,
     "pace": 82,
     "shooting": 72,
@@ -3974,7 +3974,7 @@ export const PLAYERS = [
   {
     "id": "real_125",
     "name": "João Cancelo",
-    "position": "CB",
+    "position": "RB",
     "overall": 87,
     "pace": 85,
     "shooting": 75,
@@ -4006,7 +4006,7 @@ export const PLAYERS = [
   {
     "id": "real_126",
     "name": "Dani Carvajal",
-    "position": "CB",
+    "position": "RB",
     "overall": 82,
     "pace": 80,
     "shooting": 64,
@@ -4038,7 +4038,7 @@ export const PLAYERS = [
   {
     "id": "real_127",
     "name": "Jeremie Frimpong",
-    "position": "CB",
+    "position": "LB",
     "overall": 77,
     "pace": 73,
     "shooting": 59,
@@ -4070,7 +4070,7 @@ export const PLAYERS = [
   {
     "id": "real_128",
     "name": "Denzel Dumfries",
-    "position": "CB",
+    "position": "RB",
     "overall": 72,
     "pace": 69,
     "shooting": 58,
@@ -4166,7 +4166,7 @@ export const PLAYERS = [
   {
     "id": "real_131",
     "name": "Oleksandr Zinchenko",
-    "position": "CB",
+    "position": "LB",
     "overall": 79,
     "pace": 75,
     "shooting": 66,
@@ -4230,7 +4230,7 @@ export const PLAYERS = [
   {
     "id": "real_133",
     "name": "Marc Cucurella",
-    "position": "CB",
+    "position": "LB",
     "overall": 91,
     "pace": 83,
     "shooting": 73,
@@ -4294,7 +4294,7 @@ export const PLAYERS = [
   {
     "id": "real_135",
     "name": "Nicolás Tagliafico",
-    "position": "CB",
+    "position": "LB",
     "overall": 81,
     "pace": 76,
     "shooting": 62,
@@ -4326,7 +4326,7 @@ export const PLAYERS = [
   {
     "id": "real_136",
     "name": "Marcos Acuña",
-    "position": "CB",
+    "position": "LB",
     "overall": 76,
     "pace": 76,
     "shooting": 63,
@@ -4518,7 +4518,7 @@ export const PLAYERS = [
   {
     "id": "real_142",
     "name": "Alex Sandro",
-    "position": "CB",
+    "position": "LB",
     "overall": 85,
     "pace": 74,
     "shooting": 71,
@@ -4550,7 +4550,7 @@ export const PLAYERS = [
   {
     "id": "real_143",
     "name": "Émerson Royal",
-    "position": "CB",
+    "position": "RB",
     "overall": 80,
     "pace": 78,
     "shooting": 62,
@@ -4710,7 +4710,7 @@ export const PLAYERS = [
   {
     "id": "real_148",
     "name": "Renan Lodi",
-    "position": "CB",
+    "position": "LB",
     "overall": 77,
     "pace": 73,
     "shooting": 57,
@@ -4934,7 +4934,7 @@ export const PLAYERS = [
   {
     "id": "real_155",
     "name": "Martín Cáceres",
-    "position": "CB",
+    "position": "LB",
     "overall": 86,
     "pace": 76,
     "shooting": 66,
@@ -5094,7 +5094,7 @@ export const PLAYERS = [
   {
     "id": "real_160",
     "name": "Jules Koundé",
-    "position": "CB",
+    "position": "RB",
     "overall": 83,
     "pace": 76,
     "shooting": 63,
@@ -5862,7 +5862,7 @@ export const PLAYERS = [
   {
     "id": "real_184",
     "name": "Philipp Lahm",
-    "position": "CB",
+    "position": "RB",
     "overall": 73,
     "pace": 67,
     "shooting": 57,
@@ -5894,7 +5894,7 @@ export const PLAYERS = [
   {
     "id": "real_185",
     "name": "Bastian Schweinsteiger",
-    "position": "CB",
+    "position": "DMF",
     "overall": 90,
     "pace": 81,
     "shooting": 67,
@@ -5990,9 +5990,9 @@ export const PLAYERS = [
   {
     "id": "real_188",
     "name": "Marcelo",
-    "position": "CB",
+    "position": "LB",
     "overall": 87,
-    "pace": 78,
+    "pace": 81,
     "shooting": 67,
     "passing": 83,
     "dribbling": 79,
@@ -6055,7 +6055,7 @@ export const PLAYERS = [
     "id": "real_190",
     "name": "Dani Alves",
     "photo": "/players/alves.png",
-    "position": "CB",
+    "position": "RB",
     "overall": 89,
     "pace": 79,
     "shooting": 66,
